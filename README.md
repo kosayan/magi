@@ -1,2 +1,2 @@
-# MAGI
+# magi
 MAGI計画
