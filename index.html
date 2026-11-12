@@ -1,0 +1,587 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0b0d10">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="MAGI">
+<title>MAGI</title>
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/marked/12.0.2/marked.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.1.6/purify.min.js"></script>
+<style>
+:root{
+  --bg:#0b0d10; --panel:#13171c; --panel2:#1a1f26; --line:#2a313b;
+  --text:#e6e8eb; --muted:#8b939e; --accent:#ff8a1f;
+  --ok:#3ddc84; --ng:#ff4d4d; --cond:#ffc83d; --none:#8b939e;
+  --m:#4fc3f7; --b:#ff8a1f; --c:#c792ea;
+}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);color:var(--text);
+  font-family:-apple-system,BlinkMacSystemFont,"Hiragino Sans","Noto Sans JP",sans-serif;font-size:15px;line-height:1.6}
+body{padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left)}
+.wrap{max-width:860px;margin:0 auto;padding:12px 14px 80px}
+header{display:flex;align-items:center;justify-content:space-between;padding:6px 0 12px;border-bottom:1px solid var(--line);margin-bottom:14px}
+.logo{font-family:"SF Mono",Menlo,Consolas,monospace;font-weight:800;letter-spacing:.25em;color:var(--accent);font-size:20px;cursor:pointer}
+.logo small{display:block;font-size:9px;letter-spacing:.3em;color:var(--muted);font-weight:500}
+.btn{background:var(--panel2);color:var(--text);border:1px solid var(--line);border-radius:10px;padding:9px 14px;font-size:14px;cursor:pointer}
+.btn:active{transform:scale(.98)}
+.btn.primary{background:var(--accent);color:#111;border-color:var(--accent);font-weight:700}
+.btn.danger{border-color:var(--ng);color:var(--ng)}
+.btn:disabled{opacity:.4}
+textarea,input,select{width:100%;background:var(--panel);color:var(--text);border:1px solid var(--line);border-radius:10px;padding:10px 12px;font-size:16px;font-family:inherit}
+textarea{min-height:110px;resize:vertical}
+label{display:block;font-size:12px;color:var(--muted);margin:10px 0 4px}
+.row{display:flex;gap:8px;align-items:center}
+.row > *{flex:1}
+.hidden{display:none !important}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:14px;margin-bottom:12px}
+.muted{color:var(--muted);font-size:12px}
+h2{font-size:14px;letter-spacing:.1em;color:var(--muted);margin:18px 0 8px;font-weight:600}
+
+/* units triad */
+.triad{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin:12px 0}
+.unit{background:var(--panel);border:2px solid var(--line);border-radius:12px;padding:10px 8px;text-align:center;cursor:pointer;position:relative;overflow:hidden;transition:border-color .3s}
+.unit .nm{font-family:Menlo,monospace;font-weight:800;font-size:12px;letter-spacing:.08em}
+.unit .md{font-size:10px;color:var(--muted);word-break:break-all;margin-top:2px;min-height:15px}
+.unit .st{font-size:11px;margin-top:6px;color:var(--muted)}
+.unit .vd{font-size:18px;font-weight:900;margin-top:4px;letter-spacing:.1em;min-height:26px}
+.unit.m .nm{color:var(--m)} .unit.b .nm{color:var(--b)} .unit.c .nm{color:var(--c)}
+.unit.thinking{animation:pulse 1.2s infinite}
+@keyframes pulse{0%,100%{border-color:var(--line)}50%{border-color:var(--accent)}}
+.unit.v-賛成{border-color:var(--ok)} .unit.v-反対{border-color:var(--ng)} .unit.v-条件付き{border-color:var(--cond)}
+.vd.v-賛成{color:var(--ok)} .vd.v-反対{color:var(--ng)} .vd.v-条件付き{color:var(--cond)} .vd.v-該当なし{color:var(--none)}
+.unit.err{border-color:var(--ng);opacity:.6}
+
+.banner{border-radius:14px;padding:14px;text-align:center;border:2px solid var(--line);background:var(--panel)}
+.banner .big{font-size:26px;font-weight:900;letter-spacing:.3em}
+.banner .sub{font-size:12px;color:var(--muted)}
+.banner.ok{border-color:var(--ok)} .banner.ok .big{color:var(--ok)}
+.banner.ng{border-color:var(--ng)} .banner.ng .big{color:var(--ng)}
+.banner.cond{border-color:var(--cond)} .banner.cond .big{color:var(--cond)}
+.banner.split .big{color:var(--muted)}
+
+.tabs{display:flex;gap:6px;overflow-x:auto;margin:14px 0 10px;padding-bottom:2px}
+.tab{flex:0 0 auto;padding:7px 12px;border-radius:999px;border:1px solid var(--line);background:var(--panel);font-size:13px;cursor:pointer;white-space:nowrap}
+.tab.on{background:var(--accent);color:#111;border-color:var(--accent);font-weight:700}
+
+.md-body{word-wrap:break-word;overflow-wrap:anywhere}
+.md-body h1,.md-body h2,.md-body h3{color:var(--text);letter-spacing:0;font-size:15px;margin:14px 0 6px}
+.md-body p{margin:6px 0}
+.md-body ul,.md-body ol{padding-left:20px;margin:6px 0}
+.md-body code{background:var(--panel2);padding:1px 5px;border-radius:5px;font-size:13px}
+.md-body pre{background:var(--panel2);padding:10px;border-radius:8px;overflow-x:auto}
+.md-body a{color:var(--m)}
+.md-body table{border-collapse:collapse;display:block;overflow-x:auto}
+.md-body td,.md-body th{border:1px solid var(--line);padding:4px 8px}
+.md-body hr{border:none;border-top:1px solid var(--line)}
+
+details.round{background:var(--panel);border:1px solid var(--line);border-radius:12px;margin-bottom:8px}
+details.round summary{padding:11px 14px;cursor:pointer;font-weight:600;font-size:13px;list-style:none;display:flex;justify-content:space-between}
+details.round summary::-webkit-details-marker{display:none}
+details.round .inner{padding:0 14px 14px;border-top:1px solid var(--line)}
+
+.hist-item{padding:11px 14px;border-bottom:1px solid var(--line);cursor:pointer;display:flex;gap:10px;align-items:center}
+.hist-item:last-child{border-bottom:none}
+.hist-item .q{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:14px}
+.pill{font-size:11px;padding:2px 8px;border-radius:999px;border:1px solid var(--line);white-space:nowrap}
+.pill.ok{color:var(--ok);border-color:var(--ok)} .pill.ng{color:var(--ng);border-color:var(--ng)}
+.pill.cond{color:var(--cond);border-color:var(--cond)} .pill.split{color:var(--muted)}
+
+.modal-bg{position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:50;overflow-y:auto;padding:env(safe-area-inset-top) 0 env(safe-area-inset-bottom)}
+.modal{max-width:640px;margin:20px auto;background:var(--bg);border:1px solid var(--line);border-radius:16px;padding:16px}
+.unit-set{border-left:3px solid var(--line);padding-left:10px;margin:14px 0}
+.unit-set.m{border-color:var(--m)} .unit-set.b{border-color:var(--b)} .unit-set.c{border-color:var(--c)}
+.resolved{font-size:11px;color:var(--ok);margin-top:3px;word-break:break-all}
+.switch{display:flex;align-items:center;gap:8px;margin-top:10px;font-size:14px}
+.switch input{width:auto}
+.toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom));transform:translateX(-50%);background:var(--panel2);border:1px solid var(--line);padding:10px 16px;border-radius:10px;z-index:99;font-size:13px;max-width:90vw}
+.phase{font-family:Menlo,monospace;font-size:12px;color:var(--accent);text-align:center;margin:6px 0;min-height:18px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="logo" onclick="go('home')">MAGI<small>MULTI-AI GOVERNANCE INTERFACE</small></div>
+    <button class="btn" onclick="openSettings()">⚙ 設定</button>
+  </header>
+
+  <!-- HOME -->
+  <section id="v-home">
+    <div class="card">
+      <textarea id="q" placeholder="審議してほしい質問・お願い・調べてほしいことを入力"></textarea>
+      <div class="row" style="margin-top:10px">
+        <button class="btn primary" id="runBtn" onclick="startRun()">審議開始</button>
+      </div>
+      <div class="muted" id="cfgSummary" style="margin-top:8px"></div>
+    </div>
+    <h2>履歴</h2>
+    <div class="card" style="padding:0" id="history"></div>
+  </section>
+
+  <!-- RESULT -->
+  <section id="v-result" class="hidden">
+    <div class="card"><div class="muted">質問</div><div id="r-q" style="white-space:pre-wrap"></div></div>
+    <div class="phase" id="r-phase"></div>
+    <div id="r-banner" class="banner split"><div class="big">審議中</div><div class="sub">—</div></div>
+    <div class="triad" id="r-triad"></div>
+    <div class="row">
+      <button class="btn danger hidden" id="stopBtn" onclick="stopRun()">中断</button>
+      <button class="btn" onclick="go('home')">← 戻る</button>
+      <button class="btn" onclick="copyAll()">全文コピー</button>
+    </div>
+    <div class="tabs" id="r-tabs"></div>
+    <div id="r-body"></div>
+    <div class="muted" id="r-cost" style="margin-top:12px;text-align:right"></div>
+  </section>
+</div>
+
+<!-- SETTINGS -->
+<div class="modal-bg hidden" id="settings">
+  <div class="modal">
+    <div class="row" style="justify-content:space-between"><b style="flex:0">設定</b><button class="btn" style="flex:0" onclick="closeSettings()">閉じる</button></div>
+
+    <label>OpenRouter APIキー（この端末内にのみ保存）</label>
+    <input id="s-key" type="password" placeholder="sk-or-..." autocomplete="off">
+    <div class="muted"><a href="https://openrouter.ai/keys" style="color:var(--m)">openrouter.ai/keys</a> で発行</div>
+
+    <div id="s-units"></div>
+
+    <div class="unit-set">
+      <b>統合役（最終結論をまとめるAI）</b>
+      <label>モデル（auto＝MELCHIORと同じ）</label>
+      <input id="s-int-model" list="modelList" placeholder="auto">
+      <div class="resolved" id="s-int-res"></div>
+    </div>
+
+    <label>討論ラウンド数</label>
+    <select id="s-rounds">
+      <option value="0">0（独立回答のみ）</option>
+      <option value="1">1（標準）</option>
+      <option value="2">2（深く議論）</option>
+    </select>
+
+    <div class="switch"><input type="checkbox" id="s-web"><span>Web検索を使う（:online・少し高くなる）</span></div>
+
+    <datalist id="modelList"></datalist>
+    <div class="row" style="margin-top:16px">
+      <button class="btn" onclick="resetPersonas()">人格を初期化</button>
+      <button class="btn primary" onclick="saveSettings()">保存</button>
+    </div>
+    <div class="muted" style="margin-top:10px">モデル欄に「auto」と入れると、各社の最新フラッグシップを自動で選びます。具体的なIDを入れると固定されます（候補はOpenRouterから取得）。</div>
+  </div>
+</div>
+
+<script>
+/* ========== 定義 ========== */
+const UNITS = [
+  { key:'m', name:'MELCHIOR-1', jp:'メルキオール', vendor:'anthropic', color:'var(--m)',
+    persona:'あなたは合議制AI「MAGI」の第1ユニット MELCHIOR。役割は「科学者」。論理・データ・根拠・再現性を最重視し、数字や事実で判断する。感情論や希望的観測は退け、不確かな点は不確かと明言する。' },
+  { key:'b', name:'BALTHASAR-2', jp:'バルタザール', vendor:'openai', color:'var(--b)',
+    persona:'あなたは合議制AI「MAGI」の第2ユニット BALTHASAR。役割は「守り手」。リスク・安全性・長期的な影響、関わる人（家族・顧客・チーム）への影響を最重視する。最悪のケースと、その備えを必ず考える。' },
+  { key:'c', name:'CASPER-3', jp:'カスパー', vendor:'google', color:'var(--c)',
+    persona:'あなたは合議制AI「MAGI」の第3ユニット CASPER。役割は「実践者」。直感・実利・本人の本音や欲求・実行のしやすさを最重視する。理屈が正しくても動けない案は評価しない。スピードと手触り感を大切にする。' },
+];
+
+const COMMON_RULES = `
+# 出力ルール
+- 日本語で書く。
+- 質問者は会社経営者。結論を先に、具体的に。
+- 必ず次の形式で答える：
+
+## 結論
+（1〜3文で端的に）
+
+## 主張と根拠
+（あなたの役割の視点からの主張。箇条書き可）
+
+## 懸念・前提
+（判断の前提や不確実な点）
+
+---
+判定: 賛成 / 反対 / 条件付き / 該当なし のいずれか1つ
+確信度: 0〜100の整数
+
+※「判定」は、質問が「やるべきか・正しいか」等のYes/No型ならその提案への賛否。調べもの等で賛否がない場合は「該当なし」。`;
+
+const DEFAULTS = {
+  key:'', rounds:1, web:false, intModel:'auto',
+  units: UNITS.map(u=>({ model:'auto', persona:u.persona }))
+};
+
+/* ========== 状態 ========== */
+let cfg = load('magi_cfg', DEFAULTS);
+cfg = Object.assign({}, DEFAULTS, cfg);
+if(!cfg.units || cfg.units.length!==3) cfg.units = DEFAULTS.units;
+let models = [];
+let current = null;   // 表示中セッション
+let abortCtl = null;
+let activeTab = 'sum';
+
+function load(k, d){ try{ const v = localStorage.getItem(k); return v ? JSON.parse(v) : structuredClone(d); }catch(e){ return structuredClone(d); } }
+function save(k, v){ try{ localStorage.setItem(k, JSON.stringify(v)); }catch(e){ toast('保存に失敗しました（容量不足の可能性）'); } }
+function toast(msg){ const t=document.createElement('div'); t.className='toast'; t.textContent=msg; document.body.appendChild(t); setTimeout(()=>t.remove(), 2800); }
+function esc(s){ return String(s??'').replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+function md(s){ try{ return DOMPurify.sanitize(marked.parse(s||'')); }catch(e){ return '<pre>'+esc(s)+'</pre>'; } }
+
+/* ========== モデル一覧・auto解決 ========== */
+async function fetchModels(){
+  if(models.length) return models;
+  try{
+    const r = await fetch('https://openrouter.ai/api/v1/models');
+    const j = await r.json();
+    models = j.data || [];
+    const dl = document.getElementById('modelList');
+    dl.innerHTML = models.map(m=>`<option value="${esc(m.id)}">${esc(m.name||'')}</option>`).join('');
+  }catch(e){ console.warn(e); }
+  return models;
+}
+function pickLatest(filterFn){
+  const c = models.filter(m => !m.id.includes(':') && filterFn(m.id)).sort((a,b)=>(b.created||0)-(a.created||0));
+  return c[0]?.id;
+}
+const AUTO_RULES = {
+  anthropic: id => /^anthropic\/claude-opus/.test(id) && !/fast|preview/.test(id),
+  openai:    id => /^openai\/gpt-\d/.test(id) && !/(mini|nano|instant|chat|codex|oss|audio|image|realtime|search|turbo|4o|pro)/.test(id),
+  google:    id => /^google\/gemini-[\d.]+-pro/.test(id) && !/(image|flash|lite|exp|tts|audio|customtools)/.test(id),
+};
+const FALLBACK = { anthropic:'anthropic/claude-opus-4.5', openai:'openai/gpt-5', google:'google/gemini-2.5-pro' };
+function resolveModel(val, vendor){
+  if(val && val !== 'auto') return val.trim();
+  return pickLatest(AUTO_RULES[vendor]) || FALLBACK[vendor];
+}
+function unitModel(i){ return resolveModel(cfg.units[i].model, UNITS[i].vendor); }
+function intModel(){ return cfg.intModel && cfg.intModel!=='auto' ? cfg.intModel.trim() : unitModel(0); }
+function withWeb(id){ return cfg.web ? id + ':online' : id; }
+
+/* ========== OpenRouter呼び出し（ストリーミング） ========== */
+async function chat(model, messages, onDelta, signal){
+  const res = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+    method:'POST', signal,
+    headers:{ 'Authorization':'Bearer '+cfg.key, 'Content-Type':'application/json',
+              'HTTP-Referer': location.origin, 'X-Title':'MAGI' },
+    body: JSON.stringify({ model, messages, stream:true, usage:{ include:true } })
+  });
+  if(!res.ok){ let t=''; try{ t = await res.text(); }catch(e){} throw new Error(`HTTP ${res.status} ${t.slice(0,300)}`); }
+  const reader = res.body.getReader(); const dec = new TextDecoder();
+  let buf='', text='', usage=null, err=null;
+  while(true){
+    const { done, value } = await reader.read();
+    if(done) break;
+    buf += dec.decode(value, { stream:true });
+    let idx;
+    while((idx = buf.indexOf('\n')) >= 0){
+      const line = buf.slice(0, idx).trim(); buf = buf.slice(idx+1);
+      if(!line.startsWith('data:')) continue;
+      const data = line.slice(5).trim();
+      if(data === '[DONE]') continue;
+      let j; try{ j = JSON.parse(data); }catch(e){ continue; }
+      if(j.error){ err = j.error.message || JSON.stringify(j.error); continue; }
+      const d = j.choices?.[0]?.delta?.content;
+      if(d){ text += d; onDelta && onDelta(text); }
+      if(j.usage) usage = j.usage;
+    }
+  }
+  if(err && !text) throw new Error(err);
+  return { text, usage };
+}
+
+/* ========== プロンプト ========== */
+function sysMsg(i){ return { role:'system', content: cfg.units[i].persona + '\n' + COMMON_RULES }; }
+function msgsIndependent(i, q){
+  return [ sysMsg(i), { role:'user', content:
+`【審議案件】
+${q}
+
+これは第1ラウンド（独立審議）です。他のユニットの意見は見えません。あなたの役割の視点で、独自に審議してください。` } ];
+}
+function msgsDebate(i, q, prevRound, roundNo, isLast){
+  const mine = prevRound[i]?.text || '（前回回答なし）';
+  const others = UNITS.map((u,k)=> k===i ? null : `### ${u.name}（${u.jp}）の回答\n${prevRound[k]?.text || '（応答なし）'}`).filter(Boolean).join('\n\n');
+  return [ sysMsg(i), { role:'user', content:
+`【審議案件】
+${q}
+
+これは第${roundNo+1}ラウンド（討論）です${isLast ? '。これが最終ラウンドなので、最終判定を出してください' : ''}。
+
+## あなた（${UNITS[i].name}）の前回の回答
+${mine}
+
+## 他のユニットの前回の回答
+${others}
+
+# 指示
+1. まず「## 他ユニットへの応答」として、同意する点・反論する点を具体的に書く（相手の名前を出して）。
+2. 安易に同調しない。根拠が覆されない限り、自分の役割の視点を維持する。説得された場合は何に説得されたかを明記する。
+3. その後、出力ルールの形式で更新後の回答を書く（判定・確信度も更新）。` } ];
+}
+function msgsSynth(q, finals){
+  const body = UNITS.map((u,i)=>`### ${u.name}（${u.jp}／モデル: ${finals[i]?.model||'-'}）\n${finals[i]?.text || '（応答なし）'}`).join('\n\n');
+  return [
+    { role:'system', content:'あなたは合議制AI「MAGI」の統合役。3ユニットの最終意見を公平に統合し、質問者（会社経営者）向けに総合結論を出す。どのユニットにも肩入れせず、多数意見と少数意見の両方を尊重する。日本語で、結論を先に、端的に。' },
+    { role:'user', content:
+`【審議案件】
+${q}
+
+## 3ユニットの最終意見
+${body}
+
+# 出力形式
+## 総合結論
+（質問への最終的な答え。具体的なアクションがあれば含める）
+
+## 合意状況
+（全会一致／多数決（2対1）／意見分裂 のどれか。どこで一致し、どこで割れたか）
+
+## 各ユニットの立場
+- MELCHIOR：1行
+- BALTHASAR：1行
+- CASPER：1行
+
+## 少数意見・残る論点
+（無視すべきでない反対意見や、追加で確認すべきこと）` } ];
+}
+
+/* ========== 判定パース ========== */
+function parseVerdict(text){
+  const v = (text||'').match(/判定\s*[:：]\s*\**\s*(賛成|反対|条件付き|該当なし)/);
+  const c = (text||'').match(/確信度\s*[:：]\s*\**\s*(\d{1,3})/);
+  return { verdict: v ? v[1] : '該当なし', conf: c ? Math.min(100, +c[1]) : null };
+}
+function tally(finals){
+  const vs = finals.filter(f=>f && !f.error).map(f=>f.verdict);
+  const n = k => vs.filter(v=>v===k).length;
+  const yes=n('賛成'), no=n('反対'), cond=n('条件付き'), na=n('該当なし');
+  if(vs.length===0) return { cls:'split', big:'応答なし', sub:'全ユニット応答失敗' };
+  if(na >= 2) return { cls:'split', big:'回答', sub:`賛否なしの案件（賛成${yes}・反対${no}・条件付き${cond}・該当なし${na}）` };
+  if(yes+cond >= 2 && yes >= cond) return { cls:'ok', big:'承認', sub:`賛成${yes}・条件付き${cond}・反対${no}` };
+  if(yes+cond >= 2) return { cls:'cond', big:'条件付承認', sub:`賛成${yes}・条件付き${cond}・反対${no}` };
+  if(no >= 2) return { cls:'ng', big:'否決', sub:`反対${no}・賛成${yes}・条件付き${cond}` };
+  return { cls:'split', big:'分裂', sub:`賛成${yes}・反対${no}・条件付き${cond}・該当なし${na}` };
+}
+
+/* ========== 実行 ========== */
+async function startRun(){
+  const q = document.getElementById('q').value.trim();
+  if(!q) return toast('質問を入力してください');
+  if(!cfg.key){ toast('先にAPIキーを設定してください'); return openSettings(); }
+  await fetchModels();
+  const R = +cfg.rounds;
+  const s = {
+    id: Date.now().toString(36), q, created: Date.now(), web: cfg.web,
+    models: UNITS.map((u,i)=>unitModel(i)), intModel: intModel(),
+    rounds: [], finals: [null,null,null], synth: null, tally: null, cost: 0, status:'running'
+  };
+  current = s; activeTab = 'sum';
+  go('result'); render();
+  abortCtl = new AbortController();
+  document.getElementById('stopBtn').classList.remove('hidden');
+  document.getElementById('runBtn').disabled = true;
+
+  try{
+    for(let r=0; r<=R; r++){
+      setPhase(r===0 ? 'PHASE 1 / 独立審議中…' : `PHASE ${r+1} / 討論ラウンド${r}…`);
+      const prev = s.rounds[r-1];
+      s.rounds[r] = [null,null,null];
+      await Promise.all(UNITS.map((u,i)=> runUnit(s, r, i,
+        r===0 ? msgsIndependent(i, q) : msgsDebate(i, q, prev, r, r===R))));
+      if(abortCtl.signal.aborted) throw new DOMException('aborted','AbortError');
+    }
+    // 最終判定
+    const last = s.rounds[R];
+    s.finals = last.map((x,i)=> x ? { ...x, ...parseVerdict(x.text) } : { error:true, model:s.models[i] });
+    s.tally = tally(s.finals);
+    render();
+    // 統合
+    setPhase('FINAL / 統合中…');
+    s.synth = { text:'', model:s.intModel, streaming:true };
+    try{
+      const { text, usage } = await chat(s.intModel, msgsSynth(q, s.finals),
+        t => { s.synth.text = t; if(activeTab==='sum') renderBody(); }, abortCtl.signal);
+      s.synth.text = text; addCost(s, usage);
+    }catch(e){ if(e.name==='AbortError') throw e; s.synth.text = '統合に失敗しました: ' + e.message; }
+    s.synth.streaming = false;
+    s.status = 'done'; setPhase('審議完了');
+  }catch(e){
+    s.status = e.name==='AbortError' ? 'aborted' : 'error';
+    setPhase(e.name==='AbortError' ? '中断しました' : 'エラー: ' + e.message);
+  }finally{
+    document.getElementById('stopBtn').classList.add('hidden');
+    document.getElementById('runBtn').disabled = false;
+    abortCtl = null;
+    saveSession(s); render();
+  }
+}
+async function runUnit(s, r, i, messages){
+  const model = s.models[i];
+  s.rounds[r][i] = { text:'', model, streaming:true };
+  renderTriad();
+  for(let attempt=0; attempt<2; attempt++){
+    try{
+      const { text, usage } = await chat(withWeb(model), messages, t=>{
+        s.rounds[r][i].text = t;
+        if(activeTab===UNITS[i].key) renderBody();
+      }, abortCtl.signal);
+      if(!text.trim()) throw new Error('空の応答');
+      s.rounds[r][i] = { text, model, ...parseVerdict(text) };
+      addCost(s, usage); renderTriad(); if(activeTab===UNITS[i].key) renderBody();
+      return;
+    }catch(e){
+      if(e.name==='AbortError') throw e;
+      if(attempt===1){ s.rounds[r][i] = null; s.rounds[r].errors = s.rounds[r].errors||{}; s.rounds[r].errors[i] = e.message;
+        toast(`${UNITS[i].name} 応答失敗: ${e.message.slice(0,80)}`); renderTriad(); }
+    }
+  }
+}
+function addCost(s, u){ if(u && typeof u.cost==='number') s.cost += u.cost; renderCost(); }
+function stopRun(){ abortCtl && abortCtl.abort(); }
+function setPhase(t){ document.getElementById('r-phase').textContent = t; }
+
+/* ========== 描画 ========== */
+function go(v){
+  document.getElementById('v-home').classList.toggle('hidden', v!=='home');
+  document.getElementById('v-result').classList.toggle('hidden', v!=='result');
+  if(v==='home'){ renderHistory(); renderCfgSummary(); }
+  window.scrollTo(0,0);
+}
+function render(){ if(!current) return; document.getElementById('r-q').textContent = current.q; renderBanner(); renderTriad(); renderTabs(); renderBody(); renderCost(); }
+function renderBanner(){
+  const b = document.getElementById('r-banner');
+  const t = current.tally;
+  if(!t){ b.className='banner split'; b.innerHTML='<div class="big">審議中</div><div class="sub">3ユニットが審議しています</div>'; return; }
+  b.className = 'banner ' + t.cls;
+  b.innerHTML = `<div class="big">${esc(t.big)}</div><div class="sub">${esc(t.sub)}</div>`;
+}
+function latestFor(i){
+  const s = current;
+  for(let r=s.rounds.length-1; r>=0; r--){ const x = s.rounds[r]?.[i]; if(x) return { x, r, err: s.rounds[r].errors?.[i] }; if(s.rounds[r]?.errors?.[i]) return { x:null, r, err:s.rounds[r].errors[i] }; }
+  return null;
+}
+function renderTriad(){
+  if(!current) return;
+  const el = document.getElementById('r-triad');
+  el.innerHTML = UNITS.map((u,i)=>{
+    const L = latestFor(i);
+    let st='待機', vd='', cls='';
+    if(L){
+      if(!L.x){ st='応答なし'; cls='err'; }
+      else if(L.x.streaming){ st = `R${L.r+1} 審議中…`; cls='thinking'; }
+      else { st = `R${L.r+1} 完了` + (L.x.conf!=null ? ` / 確信${L.x.conf}` : ''); vd = L.x.verdict||''; cls = 'v-'+vd; }
+    }
+    return `<div class="unit ${u.key} ${cls}" onclick="setTab('${u.key}')">
+      <div class="nm">${u.name}</div>
+      <div class="md">${esc((current.models[i]||'').split('/').pop())}</div>
+      <div class="vd v-${esc(vd)}">${esc(vd)}</div>
+      <div class="st">${esc(st)}</div></div>`;
+  }).join('');
+}
+function renderTabs(){
+  const tabs = [['sum','総合結論'], ...UNITS.map(u=>[u.key, u.name])];
+  document.getElementById('r-tabs').innerHTML = tabs.map(([k,n])=>`<div class="tab ${activeTab===k?'on':''}" onclick="setTab('${k}')">${n}</div>`).join('');
+}
+function setTab(k){ activeTab = k; renderTabs(); renderBody(); }
+function renderBody(){
+  const el = document.getElementById('r-body'); const s = current;
+  if(activeTab==='sum'){
+    if(!s.synth){ el.innerHTML = '<div class="card muted">3ユニットの審議が終わると、ここに総合結論が出ます。各ユニットのタブで途中経過をリアルタイムに見られます。</div>'; return; }
+    el.innerHTML = `<div class="card"><div class="muted">統合役: ${esc(s.synth.model)}${s.synth.streaming?' ・生成中…':''}</div><div class="md-body">${md(s.synth.text)}</div></div>`;
+    return;
+  }
+  const i = UNITS.findIndex(u=>u.key===activeTab);
+  const u = UNITS[i];
+  const html = s.rounds.map((round, r)=>{
+    const x = round?.[i]; const err = round?.errors?.[i];
+    const title = r===0 ? 'ラウンド1：独立審議' : `ラウンド${r+1}：討論`;
+    const meta = x && !x.streaming ? `${x.verdict||''}${x.conf!=null?' / 確信'+x.conf:''}` : (x ? '生成中…' : (err ? '応答なし' : '待機'));
+    const open = r===s.rounds.length-1 ? 'open' : '';
+    const content = x ? md(x.text) : `<p class="muted">${esc(err||'まだ回答がありません')}</p>`;
+    return `<details class="round" ${open}><summary><span>${title}</span><span class="muted">${esc(meta)}</span></summary><div class="inner md-body">${content}</div></details>`;
+  }).join('');
+  el.innerHTML = `<div class="muted" style="margin-bottom:8px"><b style="color:${u.color}">${u.name}</b>（${u.jp}）・モデル: ${esc(s.models[i])}</div>` + (html || '<div class="card muted">まだ回答がありません</div>');
+}
+function renderCost(){ if(current) document.getElementById('r-cost').textContent = current.cost ? `API費用: $${current.cost.toFixed(4)}（約${Math.round(current.cost*155)}円）` : ''; }
+function renderCfgSummary(){
+  const names = UNITS.map((u,i)=>`${u.name.split('-')[0]}: ${cfg.units[i].model==='auto' ? 'auto' : cfg.units[i].model.split('/').pop()}`).join(' / ');
+  document.getElementById('cfgSummary').textContent = `${names} ・討論${cfg.rounds}回${cfg.web?' ・Web検索ON':''}`;
+}
+
+/* ========== 履歴 ========== */
+function sessions(){ return load('magi_sessions', []); }
+function saveSession(s){
+  const list = sessions().filter(x=>x.id!==s.id);
+  list.unshift(s);
+  save('magi_sessions', list.slice(0, 60));
+}
+function renderHistory(){
+  const list = sessions(); const el = document.getElementById('history');
+  if(!list.length){ el.innerHTML = '<div class="hist-item muted">まだ審議はありません</div>'; return; }
+  el.innerHTML = list.map(s=>{
+    const t = s.tally || { cls:'split', big: s.status==='aborted'?'中断':'—' };
+    const d = new Date(s.created); const ds = `${d.getMonth()+1}/${d.getDate()} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
+    return `<div class="hist-item" onclick="openSession('${s.id}')"><span class="pill ${t.cls}">${esc(t.big)}</span><span class="q">${esc(s.q)}</span><span class="muted">${ds}</span><span onclick="event.stopPropagation();delSession('${s.id}')" style="padding:0 4px;color:var(--muted)">✕</span></div>`;
+  }).join('');
+}
+function openSession(id){ const s = sessions().find(x=>x.id===id); if(!s) return; current = s; activeTab='sum'; go('result'); setPhase(s.status==='done'?'審議完了':(s.status==='aborted'?'中断':'')); render(); }
+function delSession(id){ save('magi_sessions', sessions().filter(x=>x.id!==id)); renderHistory(); }
+async function copyAll(){
+  const s = current; if(!s) return;
+  let out = `# 審議案件\n${s.q}\n\n# 判定: ${s.tally?.big||'-'}（${s.tally?.sub||''}）\n\n# 総合結論\n${s.synth?.text||''}\n`;
+  UNITS.forEach((u,i)=>{ out += `\n\n# ${u.name}（${s.models[i]}）\n`; s.rounds.forEach((r,k)=>{ out += `\n## ラウンド${k+1}\n${r?.[i]?.text||'（応答なし）'}\n`; }); });
+  try{ await navigator.clipboard.writeText(out); toast('コピーしました'); }catch(e){ toast('コピーできませんでした'); }
+}
+
+/* ========== 設定 ========== */
+async function openSettings(){
+  document.getElementById('settings').classList.remove('hidden');
+  document.getElementById('s-key').value = cfg.key;
+  document.getElementById('s-rounds').value = String(cfg.rounds);
+  document.getElementById('s-web').checked = !!cfg.web;
+  document.getElementById('s-int-model').value = cfg.intModel;
+  document.getElementById('s-units').innerHTML = UNITS.map((u,i)=>`
+    <div class="unit-set ${u.key}">
+      <b style="color:${u.color}">${u.name}</b> <span class="muted">${u.jp}・初期: ${u.vendor}</span>
+      <label>モデル（auto または OpenRouterのモデルID）</label>
+      <input id="s-model-${i}" list="modelList" value="${esc(cfg.units[i].model)}" oninput="updResolved()">
+      <div class="resolved" id="s-res-${i}"></div>
+      <label>人格・役割（システムプロンプト）</label>
+      <textarea id="s-persona-${i}" style="min-height:90px;font-size:14px">${esc(cfg.units[i].persona)}</textarea>
+    </div>`).join('');
+  updResolved();
+  await fetchModels(); updResolved();
+}
+function updResolved(){
+  UNITS.forEach((u,i)=>{
+    const v = document.getElementById('s-model-'+i)?.value.trim() || 'auto';
+    const el = document.getElementById('s-res-'+i);
+    if(!el) return;
+    el.textContent = v==='auto' ? (models.length ? '→ ' + resolveModel('auto', u.vendor) : '→ 取得中…') : (models.length && !models.find(m=>m.id===v) ? '⚠ OpenRouterに見つかりません' : '');
+    el.style.color = el.textContent.startsWith('⚠') ? 'var(--ng)' : 'var(--ok)';
+  });
+  const iv = document.getElementById('s-int-model').value.trim() || 'auto';
+  document.getElementById('s-int-res').textContent = iv==='auto' ? '→ MELCHIORと同じモデル' : '';
+}
+function saveSettings(){
+  cfg.key = document.getElementById('s-key').value.trim();
+  cfg.rounds = +document.getElementById('s-rounds').value;
+  cfg.web = document.getElementById('s-web').checked;
+  cfg.intModel = document.getElementById('s-int-model').value.trim() || 'auto';
+  cfg.units = UNITS.map((u,i)=>({
+    model: document.getElementById('s-model-'+i).value.trim() || 'auto',
+    persona: document.getElementById('s-persona-'+i).value.trim() || u.persona
+  }));
+  save('magi_cfg', cfg); closeSettings(); renderCfgSummary(); toast('保存しました');
+}
+function resetPersonas(){ UNITS.forEach((u,i)=>{ document.getElementById('s-persona-'+i).value = u.persona; }); }
+function closeSettings(){ document.getElementById('settings').classList.add('hidden'); }
+
+/* ========== 起動 ========== */
+go('home');
+fetchModels();
+if('serviceWorker' in navigator){ navigator.serviceWorker.register('sw.js').catch(()=>{}); }
+</script>
+</body>
+</html>
