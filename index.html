@@ -17,7 +17,7 @@
 :root{
   --bg:#0b0d10; --panel:#13171c; --panel2:#1a1f26; --line:#2a313b;
   --text:#e6e8eb; --muted:#8b939e; --accent:#ff8a1f;
-  --ok:#3ddc84; --ng:#ff4d4d; --cond:#ffc83d; --none:#8b939e;
+  --ok:#3ddc84; --ng:#ff4d4d; --cond:#ffc83d; --hold:#6ea8ff; --none:#8b939e;
   --m:#4fc3f7; --b:#ff8a1f; --c:#c792ea;
 }
 *{box-sizing:border-box}
@@ -43,18 +43,26 @@ label{display:block;font-size:12px;color:var(--muted);margin:10px 0 4px}
 .muted{color:var(--muted);font-size:12px}
 h2{font-size:14px;letter-spacing:.1em;color:var(--muted);margin:18px 0 8px;font-weight:600}
 
-/* units triad */
+.seg{display:flex;background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:3px;gap:3px}
+.seg div{flex:1;text-align:center;padding:8px 6px;border-radius:8px;font-size:14px;cursor:pointer;color:var(--muted)}
+.seg div.on{background:var(--accent);color:#111;font-weight:700}
+.seg div.on.max{background:var(--ng);color:#fff}
+.opts{display:flex;gap:10px;align-items:center;margin-top:10px;flex-wrap:wrap}
+.chk{display:flex;align-items:center;gap:6px;font-size:14px}
+.chk input{width:auto;margin:0}
+
 .triad{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin:12px 0}
-.unit{background:var(--panel);border:2px solid var(--line);border-radius:12px;padding:10px 8px;text-align:center;cursor:pointer;position:relative;overflow:hidden;transition:border-color .3s}
-.unit .nm{font-family:Menlo,monospace;font-weight:800;font-size:12px;letter-spacing:.08em}
+.unit{background:var(--panel);border:2px solid var(--line);border-radius:12px;padding:10px 6px;text-align:center;cursor:pointer;position:relative;transition:border-color .3s}
+.unit .nm{font-family:Menlo,monospace;font-weight:800;font-size:12px;letter-spacing:.06em}
 .unit .md{font-size:10px;color:var(--muted);word-break:break-all;margin-top:2px;min-height:15px}
-.unit .st{font-size:11px;margin-top:6px;color:var(--muted)}
-.unit .vd{font-size:18px;font-weight:900;margin-top:4px;letter-spacing:.1em;min-height:26px}
+.unit .st{font-size:11px;margin-top:4px;color:var(--muted)}
+.unit .vd{font-size:17px;font-weight:900;margin-top:4px;letter-spacing:.08em;min-height:25px}
+.unit .chg{position:absolute;top:4px;right:6px;font-size:9px;color:var(--cond)}
 .unit.m .nm{color:var(--m)} .unit.b .nm{color:var(--b)} .unit.c .nm{color:var(--c)}
 .unit.thinking{animation:pulse 1.2s infinite}
 @keyframes pulse{0%,100%{border-color:var(--line)}50%{border-color:var(--accent)}}
-.unit.v-賛成{border-color:var(--ok)} .unit.v-反対{border-color:var(--ng)} .unit.v-条件付き{border-color:var(--cond)}
-.vd.v-賛成{color:var(--ok)} .vd.v-反対{color:var(--ng)} .vd.v-条件付き{color:var(--cond)} .vd.v-該当なし{color:var(--none)}
+.unit.v-賛成{border-color:var(--ok)} .unit.v-反対{border-color:var(--ng)} .unit.v-条件付き{border-color:var(--cond)} .unit.v-判断不能{border-color:var(--hold)}
+.vd.v-賛成{color:var(--ok)} .vd.v-反対{color:var(--ng)} .vd.v-条件付き{color:var(--cond)} .vd.v-判断不能{color:var(--hold)} .vd.v-該当なし{color:var(--none)}
 .unit.err{border-color:var(--ng);opacity:.6}
 
 .banner{border-radius:14px;padding:14px;text-align:center;border:2px solid var(--line);background:var(--panel)}
@@ -63,6 +71,7 @@ h2{font-size:14px;letter-spacing:.1em;color:var(--muted);margin:18px 0 8px;font-
 .banner.ok{border-color:var(--ok)} .banner.ok .big{color:var(--ok)}
 .banner.ng{border-color:var(--ng)} .banner.ng .big{color:var(--ng)}
 .banner.cond{border-color:var(--cond)} .banner.cond .big{color:var(--cond)}
+.banner.hold{border-color:var(--hold)} .banner.hold .big{color:var(--hold)}
 .banner.split .big{color:var(--muted)}
 
 .tabs{display:flex;gap:6px;overflow-x:auto;margin:14px 0 10px;padding-bottom:2px}
@@ -81,32 +90,38 @@ h2{font-size:14px;letter-spacing:.1em;color:var(--muted);margin:18px 0 8px;font-
 .md-body hr{border:none;border-top:1px solid var(--line)}
 
 details.round{background:var(--panel);border:1px solid var(--line);border-radius:12px;margin-bottom:8px}
-details.round summary{padding:11px 14px;cursor:pointer;font-weight:600;font-size:13px;list-style:none;display:flex;justify-content:space-between}
+details.round summary{padding:11px 14px;cursor:pointer;font-weight:600;font-size:13px;list-style:none;display:flex;justify-content:space-between;gap:8px}
 details.round summary::-webkit-details-marker{display:none}
 details.round .inner{padding:0 14px 14px;border-top:1px solid var(--line)}
 
-.hist-item{padding:11px 14px;border-bottom:1px solid var(--line);cursor:pointer;display:flex;gap:10px;align-items:center}
+.hist-item{padding:11px 14px;border-bottom:1px solid var(--line);cursor:pointer;display:flex;gap:8px;align-items:center}
 .hist-item:last-child{border-bottom:none}
 .hist-item .q{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:14px}
 .pill{font-size:11px;padding:2px 8px;border-radius:999px;border:1px solid var(--line);white-space:nowrap}
 .pill.ok{color:var(--ok);border-color:var(--ok)} .pill.ng{color:var(--ng);border-color:var(--ng)}
-.pill.cond{color:var(--cond);border-color:var(--cond)} .pill.split{color:var(--muted)}
+.pill.cond{color:var(--cond);border-color:var(--cond)} .pill.hold{color:var(--hold);border-color:var(--hold)} .pill.split{color:var(--muted)}
+.pill.max{color:var(--ng);border-color:var(--ng)}
+
+.rate{display:flex;gap:6px;margin-top:12px}
+.rate .btn{flex:1;font-size:13px;padding:8px 4px}
+.rate .btn.on{border-color:var(--accent);color:var(--accent);font-weight:700}
 
 .modal-bg{position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:50;overflow-y:auto;padding:env(safe-area-inset-top) 0 env(safe-area-inset-bottom)}
 .modal{max-width:640px;margin:20px auto;background:var(--bg);border:1px solid var(--line);border-radius:16px;padding:16px}
-.unit-set{border-left:3px solid var(--line);padding-left:10px;margin:14px 0}
+.sec{border-top:1px solid var(--line);margin-top:16px;padding-top:6px}
+.sec > b{font-size:14px}
+.unit-set{border-left:3px solid var(--line);padding-left:10px;margin:10px 0}
 .unit-set.m{border-color:var(--m)} .unit-set.b{border-color:var(--b)} .unit-set.c{border-color:var(--c)}
-.resolved{font-size:11px;color:var(--ok);margin-top:3px;word-break:break-all}
-.switch{display:flex;align-items:center;gap:8px;margin-top:10px;font-size:14px}
-.switch input{width:auto}
+.resolved{font-size:11px;margin-top:3px;word-break:break-all;color:var(--ok)}
 .toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom));transform:translateX(-50%);background:var(--panel2);border:1px solid var(--line);padding:10px 16px;border-radius:10px;z-index:99;font-size:13px;max-width:90vw}
 .phase{font-family:Menlo,monospace;font-size:12px;color:var(--accent);text-align:center;margin:6px 0;min-height:18px}
+details.plain summary{cursor:pointer;color:var(--muted);font-size:13px;margin-top:10px}
 </style>
 </head>
 <body>
 <div class="wrap">
   <header>
-    <div class="logo" onclick="go('home')">MAGI<small>MULTI-AI GOVERNANCE INTERFACE</small></div>
+    <div class="logo" onclick="go('home')">MAGI<small>MULTI-AI GOVERNANCE INTERFACE v2</small></div>
     <button class="btn" onclick="openSettings()">⚙ 設定</button>
   </header>
 
@@ -114,18 +129,24 @@ details.round .inner{padding:0 14px 14px;border-top:1px solid var(--line)}
   <section id="v-home">
     <div class="card">
       <textarea id="q" placeholder="審議してほしい質問・お願い・調べてほしいことを入力"></textarea>
-      <div class="row" style="margin-top:10px">
-        <button class="btn primary" id="runBtn" onclick="startRun()">審議開始</button>
+      <div class="opts">
+        <div class="seg" id="modeSeg" style="flex:1;min-width:180px">
+          <div data-m="eco" onclick="setMode('eco')">節約</div>
+          <div data-m="max" onclick="setMode('max')">本気</div>
+        </div>
+        <label class="chk"><input type="checkbox" id="webChk" onchange="setWeb(this.checked)">Web検索</label>
       </div>
       <div class="muted" id="cfgSummary" style="margin-top:8px"></div>
+      <button class="btn primary" id="runBtn" style="width:100%;margin-top:10px" onclick="startRun()">審議開始</button>
     </div>
     <h2>履歴</h2>
+    <div class="muted" id="stats" style="margin:-4px 0 8px"></div>
     <div class="card" style="padding:0" id="history"></div>
   </section>
 
   <!-- RESULT -->
   <section id="v-result" class="hidden">
-    <div class="card"><div class="muted">質問</div><div id="r-q" style="white-space:pre-wrap"></div></div>
+    <div class="card"><div class="muted" id="r-meta">質問</div><div id="r-q" style="white-space:pre-wrap"></div></div>
     <div class="phase" id="r-phase"></div>
     <div id="r-banner" class="banner split"><div class="big">審議中</div><div class="sub">—</div></div>
     <div class="triad" id="r-triad"></div>
@@ -136,6 +157,14 @@ details.round .inner{padding:0 14px 14px;border-top:1px solid var(--line)}
     </div>
     <div class="tabs" id="r-tabs"></div>
     <div id="r-body"></div>
+    <div id="r-rate" class="hidden">
+      <div class="muted" style="margin-top:14px">この判定は合ってた？（精度の記録用）</div>
+      <div class="rate">
+        <button class="btn" data-r="good" onclick="rate('good')">✓ 正解</button>
+        <button class="btn" data-r="meh" onclick="rate('meh')">△ 微妙</button>
+        <button class="btn" data-r="bad" onclick="rate('bad')">✗ 不正解</button>
+      </div>
+    </div>
     <div class="muted" id="r-cost" style="margin-top:12px;text-align:right"></div>
   </section>
 </div>
@@ -143,130 +172,199 @@ details.round .inner{padding:0 14px 14px;border-top:1px solid var(--line)}
 <!-- SETTINGS -->
 <div class="modal-bg hidden" id="settings">
   <div class="modal">
-    <div class="row" style="justify-content:space-between"><b style="flex:0">設定</b><button class="btn" style="flex:0" onclick="closeSettings()">閉じる</button></div>
+    <div class="row" style="justify-content:space-between"><b style="flex:0;white-space:nowrap">設定</b><button class="btn" style="flex:0" onclick="closeSettings()">閉じる</button></div>
 
-    <label>OpenRouter APIキー（この端末内にのみ保存）</label>
+    <label>OpenRouter APIキー（必須・この端末内にのみ保存）</label>
     <input id="s-key" type="password" placeholder="sk-or-..." autocomplete="off">
     <div class="muted"><a href="https://openrouter.ai/keys" style="color:var(--m)">openrouter.ai/keys</a> で発行</div>
 
-    <div id="s-units"></div>
+    <label>Google AI Studio APIキー（任意・CASPERを無料枠で動かす）</label>
+    <input id="s-gkey" type="password" placeholder="AIza..." autocomplete="off">
+    <div class="muted"><a href="https://aistudio.google.com/apikey" style="color:var(--m)">aistudio.google.com/apikey</a> で発行。無料枠は入力内容がGoogleの改善に使われるため、機密は入れないこと。無料枠が使えないモデルやWeb検索ON時は自動でOpenRouter経由になります。</div>
 
-    <div class="unit-set">
-      <b>統合役（最終結論をまとめるAI）</b>
-      <label>モデル（auto＝MELCHIORと同じ）</label>
-      <input id="s-int-model" list="modelList" placeholder="auto">
-      <div class="resolved" id="s-int-res"></div>
-    </div>
-
-    <label>討論ラウンド数</label>
-    <select id="s-rounds">
-      <option value="0">0（独立回答のみ）</option>
-      <option value="1">1（標準）</option>
-      <option value="2">2（深く議論）</option>
+    <label>討論</label>
+    <select id="s-debate">
+      <option value="auto">自動（意見が割れた時だけ討論・おすすめ）</option>
+      <option value="always">常に討論する</option>
+      <option value="never">討論しない（独立回答のみ）</option>
     </select>
 
-    <div class="switch"><input type="checkbox" id="s-web"><span>Web検索を使う（:online・少し高くなる）</span></div>
+    <div class="sec"><b>節約モードのモデル</b>
+      <div id="s-eco"></div>
+    </div>
+    <div class="sec"><b>本気モードのモデル</b>
+      <div id="s-max"></div>
+    </div>
+    <div class="sec">
+      <b>統合役（最終結論をまとめるAI）</b>
+      <label>モデル（auto＝各モードのMELCHIORと同じ）</label>
+      <input id="s-int" list="modelList" placeholder="auto">
+    </div>
+
+    <details class="plain"><summary>各ユニットへの指示（上級者向け）</summary>
+      <div id="s-personas"></div>
+      <button class="btn" style="margin-top:8px" onclick="resetPersonas()">指示を初期化</button>
+    </details>
 
     <datalist id="modelList"></datalist>
-    <div class="row" style="margin-top:16px">
-      <button class="btn" onclick="resetPersonas()">人格を初期化</button>
-      <button class="btn primary" onclick="saveSettings()">保存</button>
-    </div>
-    <div class="muted" style="margin-top:10px">モデル欄に「auto」と入れると、各社の最新フラッグシップを自動で選びます。具体的なIDを入れると固定されます（候補はOpenRouterから取得）。</div>
+    <button class="btn primary" style="width:100%;margin-top:16px" onclick="saveSettings()">保存</button>
+    <div class="muted" style="margin-top:10px">モデル欄が「auto」なら各社の最新モデルを自動選択。「google/…」などOpenRouterのIDを入れると固定。CASPERに「gemini-…」（スラッシュなし）を入れるとGoogle直接で固定。</div>
   </div>
 </div>
 
 <script>
 /* ========== 定義 ========== */
+const NEUTRAL = (n, name) => `あなたは合議制AI「MAGI」の第${n}ユニット ${name}。他の2機と対等な、独立した判断者である。特定の役割や立場は持たず、自分の知識と推論で最も妥当と考える結論を出す。事実と推測をはっきり区別し、不確かな点は不確かと明言する。`;
 const UNITS = [
-  { key:'m', name:'MELCHIOR-1', jp:'メルキオール', vendor:'anthropic', color:'var(--m)',
-    persona:'あなたは合議制AI「MAGI」の第1ユニット MELCHIOR。役割は「科学者」。論理・データ・根拠・再現性を最重視し、数字や事実で判断する。感情論や希望的観測は退け、不確かな点は不確かと明言する。' },
-  { key:'b', name:'BALTHASAR-2', jp:'バルタザール', vendor:'openai', color:'var(--b)',
-    persona:'あなたは合議制AI「MAGI」の第2ユニット BALTHASAR。役割は「守り手」。リスク・安全性・長期的な影響、関わる人（家族・顧客・チーム）への影響を最重視する。最悪のケースと、その備えを必ず考える。' },
-  { key:'c', name:'CASPER-3', jp:'カスパー', vendor:'google', color:'var(--c)',
-    persona:'あなたは合議制AI「MAGI」の第3ユニット CASPER。役割は「実践者」。直感・実利・本人の本音や欲求・実行のしやすさを最重視する。理屈が正しくても動けない案は評価しない。スピードと手触り感を大切にする。' },
+  { key:'m', name:'MELCHIOR-1', jp:'メルキオール', vendor:'anthropic', color:'var(--m)', persona: NEUTRAL(1,'MELCHIOR') },
+  { key:'b', name:'BALTHASAR-2', jp:'バルタザール', vendor:'openai',   color:'var(--b)', persona: NEUTRAL(2,'BALTHASAR') },
+  { key:'c', name:'CASPER-3',   jp:'カスパー',     vendor:'google',   color:'var(--c)', persona: NEUTRAL(3,'CASPER') },
 ];
+const MODES = {
+  eco: { label:'節約', tokens:2500, effort:'low',    hint:'目安 1問 数円' },
+  max: { label:'本気', tokens:6000, effort:'medium', hint:'目安 1問 100〜400円' },
+};
 
-const COMMON_RULES = `
-# 出力ルール
-- 日本語で書く。
-- 質問者は会社経営者。結論を先に、具体的に。
-- 必ず次の形式で答える：
-
+const FORMAT = `
 ## 結論
 （1〜3文で端的に）
 
-## 主張と根拠
-（あなたの役割の視点からの主張。箇条書き可）
+## 根拠
+（主張ごとに根拠を書く。Web検索の結果を使った主張には出典URLを付ける。裏付けのない主張には【未確認】と付ける）
 
-## 懸念・前提
-（判断の前提や不確実な点）
+## 不明点・反証の可能性
+（どんな事実が出てきたら結論が変わるか）
 
 ---
-判定: 賛成 / 反対 / 条件付き / 該当なし のいずれか1つ
-確信度: 0〜100の整数
+判定: 賛成 / 反対 / 条件付き / 判断不能 / 該当なし のいずれか1つ
+確信度: 0〜100の整数`;
 
-※「判定」は、質問が「やるべきか・正しいか」等のYes/No型ならその提案への賛否。調べもの等で賛否がない場合は「該当なし」。`;
+const RULES = `
+# 出力ルール
+- 日本語で書く。質問者は会社経営者。結論を先に、具体的に、簡潔に。
+- 「判定」は、質問がYes/No型（やるべきか・正しいか・AとBどちらか等）ならその提案への賛否。Aか Bかの比較なら、質問文で先に挙げられた方（A）を選ぶなら「賛成」、Bなら「反対」とし、結論にどちらかを明記する。調べもの等で賛否がない場合は「該当なし」。情報不足で判断できなければ「判断不能」。
+- 確信度は自分の正答確率の正直な見積もり。わからないことを断定しない。
+- 必ず次の形式で答える：
+${FORMAT}`;
 
-const DEFAULTS = {
-  key:'', rounds:1, web:false, intModel:'auto',
-  units: UNITS.map(u=>({ model:'auto', persona:u.persona }))
+const DEFAULT_CFG = {
+  v:2, key:'', gkey:'', mode:'eco', web:false, debate:'auto', intModel:'auto',
+  models:{ eco:['auto','auto','auto'], max:['auto','auto','auto'] },
+  personas: UNITS.map(u=>u.persona),
 };
 
 /* ========== 状態 ========== */
-let cfg = load('magi_cfg', DEFAULTS);
-cfg = Object.assign({}, DEFAULTS, cfg);
-if(!cfg.units || cfg.units.length!==3) cfg.units = DEFAULTS.units;
-let models = [];
-let current = null;   // 表示中セッション
-let abortCtl = null;
-let activeTab = 'sum';
+const clone = o => JSON.parse(JSON.stringify(o));
+let cfg = loadCfg();
+let orModels = [], gModels = [];
+let current = null, abortCtl = null, activeTab = 'sum', googleBlocked = false;
 
-function load(k, d){ try{ const v = localStorage.getItem(k); return v ? JSON.parse(v) : structuredClone(d); }catch(e){ return structuredClone(d); } }
+function loadCfg(){
+  let c = load('magi_cfg2', null);
+  if(!c){
+    c = clone(DEFAULT_CFG);
+    const old = load('magi_cfg', null);           // v1からキーだけ引き継ぐ
+    if(old && old.key) c.key = old.key;
+    save('magi_cfg2', c);
+  }
+  c = Object.assign(clone(DEFAULT_CFG), c);
+  c.models = Object.assign(clone(DEFAULT_CFG.models), c.models);
+  if(!Array.isArray(c.personas) || c.personas.length!==3) c.personas = UNITS.map(u=>u.persona);
+  return c;
+}
+function load(k, d){ try{ const v = localStorage.getItem(k); return v ? JSON.parse(v) : (d===null?null:clone(d)); }catch(e){ return d===null?null:clone(d); } }
 function save(k, v){ try{ localStorage.setItem(k, JSON.stringify(v)); }catch(e){ toast('保存に失敗しました（容量不足の可能性）'); } }
-function toast(msg){ const t=document.createElement('div'); t.className='toast'; t.textContent=msg; document.body.appendChild(t); setTimeout(()=>t.remove(), 2800); }
+function toast(msg){ const t=document.createElement('div'); t.className='toast'; t.textContent=msg; document.body.appendChild(t); setTimeout(()=>t.remove(), 3200); }
 function esc(s){ return String(s??'').replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
 function md(s){ try{ return DOMPurify.sanitize(marked.parse(s||'')); }catch(e){ return '<pre>'+esc(s)+'</pre>'; } }
+const $ = id => document.getElementById(id);
 
 /* ========== モデル一覧・auto解決 ========== */
-async function fetchModels(){
-  if(models.length) return models;
+async function fetchOR(){
+  if(orModels.length) return;
   try{
-    const r = await fetch('https://openrouter.ai/api/v1/models');
-    const j = await r.json();
-    models = j.data || [];
-    const dl = document.getElementById('modelList');
-    dl.innerHTML = models.map(m=>`<option value="${esc(m.id)}">${esc(m.name||'')}</option>`).join('');
-  }catch(e){ console.warn(e); }
-  return models;
+    const j = await (await fetch('https://openrouter.ai/api/v1/models')).json();
+    orModels = j.data || [];
+    $('modelList').innerHTML = orModels.map(m=>`<option value="${esc(m.id)}">${esc(m.name||'')}</option>`).join('');
+  }catch(e){ console.warn('OpenRouter model list', e); }
 }
-function pickLatest(filterFn){
-  const c = models.filter(m => !m.id.includes(':') && filterFn(m.id)).sort((a,b)=>(b.created||0)-(a.created||0));
-  return c[0]?.id;
+async function fetchG(){
+  if(gModels.length || !cfg.gkey) return;
+  try{
+    const j = await (await fetch('https://generativelanguage.googleapis.com/v1beta/models?pageSize=200&key='+encodeURIComponent(cfg.gkey))).json();
+    gModels = (j.models||[]).filter(m=>(m.supportedGenerationMethods||[]).includes('generateContent')).map(m=>m.name.replace(/^models\//,''));
+  }catch(e){ console.warn('Google model list', e); }
 }
-const AUTO_RULES = {
-  anthropic: id => /^anthropic\/claude-opus/.test(id) && !/fast|preview/.test(id),
-  openai:    id => /^openai\/gpt-\d/.test(id) && !/(mini|nano|instant|chat|codex|oss|audio|image|realtime|search|turbo|4o|pro)/.test(id),
-  google:    id => /^google\/gemini-[\d.]+-pro/.test(id) && !/(image|flash|lite|exp|tts|audio|customtools)/.test(id),
+const BAD_COMMON = /(image|tts|audio|realtime|live|embedding|exp|preview-tts|customtools|search|transcribe|nano|:)/;
+const OR_RULES = {
+  eco: {
+    anthropic: [id => /^anthropic\/claude-haiku/.test(id)],
+    openai:    [id => /^openai\/gpt-[\d.]+-mini$/.test(id)],
+    google:    [id => /^google\/gemini-[\d.]+-flash$/.test(id), id => /^google\/gemini-[\d.]+-flash/.test(id) && !/lite/.test(id)],
+  },
+  max: {
+    anthropic: [id => /^anthropic\/claude-fable/.test(id), id => /^anthropic\/claude-opus/.test(id) && !/fast/.test(id)],
+    openai:    [id => /^openai\/gpt-\d/.test(id) && !/(mini|instant|chat|codex|oss|turbo|4o|pro)/.test(id)],
+    google:    [id => /^google\/gemini-\d/.test(id) && !/(flash|lite|gemma)/.test(id)],
+  }
 };
-const FALLBACK = { anthropic:'anthropic/claude-opus-4.5', openai:'openai/gpt-5', google:'google/gemini-2.5-pro' };
-function resolveModel(val, vendor){
-  if(val && val !== 'auto') return val.trim();
-  return pickLatest(AUTO_RULES[vendor]) || FALLBACK[vendor];
+const OR_FALLBACK = {
+  eco: { anthropic:'anthropic/claude-haiku-4.5', openai:'openai/gpt-5-mini', google:'google/gemini-2.5-flash' },
+  max: { anthropic:'anthropic/claude-opus-4.5',  openai:'openai/gpt-5',      google:'google/gemini-4-argon' },
+};
+function pickOR(mode, vendor){
+  for(const rule of OR_RULES[mode][vendor]){
+    const c = orModels.filter(m => !BAD_COMMON.test(m.id) && rule(m.id)).sort((a,b)=>(b.created||0)-(a.created||0));
+    if(c[0]) return c[0].id;
+  }
+  return OR_FALLBACK[mode][vendor];
 }
-function unitModel(i){ return resolveModel(cfg.units[i].model, UNITS[i].vendor); }
-function intModel(){ return cfg.intModel && cfg.intModel!=='auto' ? cfg.intModel.trim() : unitModel(0); }
-function withWeb(id){ return cfg.web ? id + ':online' : id; }
+function verOf(name){ const m = name.match(/gemini-(\d+(?:\.\d+)?)/); return m ? parseFloat(m[1]) : 0; }
+function pickG(mode){
+  const ok = gModels.filter(n => /^gemini-\d/.test(n) && !BAD_COMMON.test(n) && !/lite/.test(n) && !/-\d{3}$/.test(n));
+  const pool = mode==='eco' ? ok.filter(n=>/flash/.test(n)) : ok.filter(n=>!/flash/.test(n));
+  pool.sort((a,b)=> verOf(b)-verOf(a) || a.length-b.length);
+  return pool[0] || null;
+}
+/** ユニットiの接続先 { provider:'or'|'google', model, orModel } */
+function unitSpec(i, mode, web){
+  const v = (cfg.models[mode][i]||'auto').trim();
+  const vendor = UNITS[i].vendor;
+  const orModel = (v==='auto' || !v.includes('/')) ? pickOR(mode, vendor) : v;
+  if(v !== 'auto' && v.includes('/')) return { provider:'or', model:v, orModel:v };
+  const directOK = vendor==='google' && cfg.gkey && !web;
+  if(directOK){
+    const gm = v==='auto' ? pickG(mode) : v;
+    if(gm) return { provider:'google', model:gm, orModel };
+  }
+  return { provider:'or', model:orModel, orModel };
+}
+function intSpec(mode, specs){
+  const v = (cfg.intModel||'auto').trim();
+  if(v==='auto') return specs[0].provider==='or' ? { provider:'or', model:specs[0].model, orModel:specs[0].model } : specs[0];
+  return v.includes('/') ? { provider:'or', model:v, orModel:v } : { provider:'google', model:v, orModel:pickOR(mode,'google') };
+}
+/** 一致判定用の安いモデル */
+function judgeSpec(){
+  if(cfg.gkey){ const g = pickG('eco'); if(g) return { provider:'google', model:g, orModel:pickOR('eco','google') }; }
+  const m = pickOR('eco','google'); return { provider:'or', model:m, orModel:m };
+}
 
-/* ========== OpenRouter呼び出し（ストリーミング） ========== */
-async function chat(model, messages, onDelta, signal){
-  const res = await fetch('https://openrouter.ai/api/v1/chat/completions', {
-    method:'POST', signal,
-    headers:{ 'Authorization':'Bearer '+cfg.key, 'Content-Type':'application/json',
-              'HTTP-Referer': location.origin, 'X-Title':'MAGI' },
-    body: JSON.stringify({ model, messages, stream:true, usage:{ include:true } })
-  });
-  if(!res.ok){ let t=''; try{ t = await res.text(); }catch(e){} throw new Error(`HTTP ${res.status} ${t.slice(0,300)}`); }
+/* ========== API呼び出し（ストリーミング） ========== */
+async function chatRaw(spec, messages, onDelta, signal, maxTokens, effort, web){
+  let url, headers, body;
+  if(spec.provider==='google'){
+    url = 'https://generativelanguage.googleapis.com/v1beta/openai/chat/completions';
+    headers = { 'Authorization':'Bearer '+cfg.gkey, 'Content-Type':'application/json' };
+    body = { model:spec.model, messages, stream:true, max_tokens:maxTokens, stream_options:{ include_usage:true } };
+  }else{
+    url = 'https://openrouter.ai/api/v1/chat/completions';
+    headers = { 'Authorization':'Bearer '+cfg.key, 'Content-Type':'application/json', 'HTTP-Referer':location.origin, 'X-Title':'MAGI' };
+    body = { model: spec.model + (web ? ':online' : ''), messages, stream:true, max_tokens:maxTokens, usage:{ include:true } };
+    if(effort) body.reasoning = { effort };
+  }
+  const res = await fetch(url, { method:'POST', signal, headers, body:JSON.stringify(body) });
+  if(!res.ok){ let t=''; try{ t = await res.text(); }catch(e){} const err = new Error(`HTTP ${res.status} ${t.slice(0,300)}`); err.status = res.status; throw err; }
   const reader = res.body.getReader(); const dec = new TextDecoder();
   let buf='', text='', usage=null, err=null;
   while(true){
@@ -289,53 +387,81 @@ async function chat(model, messages, onDelta, signal){
   if(err && !text) throw new Error(err);
   return { text, usage };
 }
+/** Google直接が失敗したらOpenRouterに自動フォールバック */
+async function chat(spec, messages, onDelta, signal, maxTokens, effort, web){
+  if(spec.provider==='google' && googleBlocked) spec = { provider:'or', model:spec.orModel, orModel:spec.orModel };
+  try{
+    return { ...(await chatRaw(spec, messages, onDelta, signal, maxTokens, effort, web)), usedSpec:spec };
+  }catch(e){
+    if(e.name==='AbortError' || spec.provider!=='google') throw e;
+    const fb = { provider:'or', model:spec.orModel, orModel:spec.orModel };
+    googleBlocked = true;
+    toast(`Google無料枠が使えず、OpenRouter経由に切替（${e.message.slice(0,40)}）`);
+    return { ...(await chatRaw(fb, messages, onDelta, signal, maxTokens, effort, web)), usedSpec:fb };
+  }
+}
 
 /* ========== プロンプト ========== */
-function sysMsg(i){ return { role:'system', content: cfg.units[i].persona + '\n' + COMMON_RULES }; }
-function msgsIndependent(i, q){
+function sysMsg(i){ return { role:'system', content: cfg.personas[i] + '\n' + RULES }; }
+function msgsBlind(i, q){
   return [ sysMsg(i), { role:'user', content:
 `【審議案件】
 ${q}
 
-これは第1ラウンド（独立審議）です。他のユニットの意見は見えません。あなたの役割の視点で、独自に審議してください。` } ];
+これは第1段階（独立審議）です。他のユニットの意見は見えません。自分の判断で、独自に審議してください。` } ];
 }
-function msgsDebate(i, q, prevRound, roundNo, isLast){
-  const mine = prevRound[i]?.text || '（前回回答なし）';
-  const others = UNITS.map((u,k)=> k===i ? null : `### ${u.name}（${u.jp}）の回答\n${prevRound[k]?.text || '（応答なし）'}`).filter(Boolean).join('\n\n');
+function msgsCross(i, q, r1, anon){
+  const mine = r1[i]?.text || '（あなたの初回回答は取得できませんでした）';
+  const others = Object.entries(anon).map(([lab, k]) => `### 機${lab}の回答\n${r1[k]?.text || '（応答なし）'}`).join('\n\n');
   return [ sysMsg(i), { role:'user', content:
 `【審議案件】
 ${q}
 
-これは第${roundNo+1}ラウンド（討論）です${isLast ? '。これが最終ラウンドなので、最終判定を出してください' : ''}。
+これは第2段階（相互批判と再判定）です。他の2機の回答を匿名で示します。
 
-## あなた（${UNITS[i].name}）の前回の回答
+## あなたの初回回答（確定済み）
 ${mine}
 
-## 他のユニットの前回の回答
+## 他機の回答（匿名）
 ${others}
 
 # 指示
-1. まず「## 他ユニットへの応答」として、同意する点・反論する点を具体的に書く（相手の名前を出して）。
-2. 安易に同調しない。根拠が覆されない限り、自分の役割の視点を維持する。説得された場合は何に説得されたかを明記する。
-3. その後、出力ルールの形式で更新後の回答を書く（判定・確信度も更新）。` } ];
+1. 最初に「## 他機への指摘」として、機A・機Bの主張の誤り・根拠の弱さ・見落としを具体的に指摘する。正しい点は認める。評価の対象は根拠の妥当性であり、多数派かどうかではない。
+2. 多数派に合わせるための同調は禁止。根拠が覆されない限り初回の判断を維持する。
+3. 次に出力ルールの形式で再判定した回答を書く。
+4. 最後に次の2行を必ず付ける：
+変更: あり / なし
+変更理由: （意見を変えた場合は、決め手になった具体的な根拠。変えていなければ「なし」）` } ];
 }
-function msgsSynth(q, finals){
-  const body = UNITS.map((u,i)=>`### ${u.name}（${u.jp}／モデル: ${finals[i]?.model||'-'}）\n${finals[i]?.text || '（応答なし）'}`).join('\n\n');
+function msgsJudge(q, r1){
+  const body = UNITS.map((u,i)=>`### ${u.name}\n${(r1[i]?.text||'（応答なし）').slice(0,3000)}`).join('\n\n');
+  return [ { role:'system', content:'あなたは審議の進行役。3つの回答の結論が実質的に一致しているかだけを判定する。JSONのみを出力する。' },
+           { role:'user', content:`【質問】\n${q}\n\n${body}\n\n3つの回答の「結論」は実質的に同じか？ 細部や表現の違いは無視し、質問者が取るべき行動や答えの中身が同じなら一致とする。\n次のJSONだけを出力：{"agree": true または false, "reason": "30字以内"}` } ];
+}
+function msgsSynth(q, finals, s){
+  const body = UNITS.map((u,i)=>{
+    const f = finals[i];
+    return `### ${u.name}（モデル: ${f?.model||'-'}${f?.changed?'・討論で意見変更':''}）\n${f?.text || '（応答なし）'}`;
+  }).join('\n\n');
+  const initial = s.rounds[1] ? '\n\n## 参考：討論前の初回判定\n' + UNITS.map((u,i)=>`- ${u.name}: ${s.rounds[0][i]?.verdict||'-'}（確信度${s.rounds[0][i]?.conf??'-'}）`).join('\n') : '';
   return [
-    { role:'system', content:'あなたは合議制AI「MAGI」の統合役。3ユニットの最終意見を公平に統合し、質問者（会社経営者）向けに総合結論を出す。どのユニットにも肩入れせず、多数意見と少数意見の両方を尊重する。日本語で、結論を先に、端的に。' },
+    { role:'system', content:'あなたは合議制AI「MAGI」の統合役。新たな判断者ではなく、3ユニットの最終意見と根拠を公平に集約する。多数派に機械的に従わず、根拠の強さを重視し、正しそうな少数意見を切り捨てない。3機が一致していても同じ誤情報に依存していれば保留する。合意率を正解確率として扱わない。日本語で、結論を先に、簡潔に。' },
     { role:'user', content:
 `【審議案件】
 ${q}
 
 ## 3ユニットの最終意見
-${body}
+${body}${initial}
 
-# 出力形式
+# 出力形式（1行目は必ずこの形式）
+最終判定: 確定 / 保留 / 判断不能 のいずれか
+（確定＝根拠が十分で重大な反証が残っていない。保留＝少数意見に強い根拠がある・重要な事実が未確認・根拠が共通の誤情報に依存している等。判断不能＝情報が不足）
+
 ## 総合結論
-（質問への最終的な答え。具体的なアクションがあれば含める）
+（質問への答え。具体的なアクションがあれば含める。保留なら何を確認すれば確定できるか）
 
 ## 合意状況
-（全会一致／多数決（2対1）／意見分裂 のどれか。どこで一致し、どこで割れたか）
+（全会一致／2対1／分裂 と、どこで一致しどこで割れたか）
 
 ## 各ユニットの立場
 - MELCHIOR：1行
@@ -343,136 +469,211 @@ ${body}
 - CASPER：1行
 
 ## 少数意見・残る論点
-（無視すべきでない反対意見や、追加で確認すべきこと）` } ];
+（無視すべきでない反対意見、【未確認】の重要な主張）` } ];
 }
 
-/* ========== 判定パース ========== */
-function parseVerdict(text){
-  const v = (text||'').match(/判定\s*[:：]\s*\**\s*(賛成|反対|条件付き|該当なし)/);
-  const c = (text||'').match(/確信度\s*[:：]\s*\**\s*(\d{1,3})/);
-  return { verdict: v ? v[1] : '該当なし', conf: c ? Math.min(100, +c[1]) : null };
+/* ========== パース・集計 ========== */
+function parseOut(text){
+  const t = text || '';
+  const v = t.match(/判定\s*[:：]\s*\**\s*(賛成|反対|条件付き|判断不能|該当なし)/);
+  const c = t.match(/確信度\s*[:：]\s*\**\s*(\d{1,3})/);
+  const ch = t.match(/変更\s*[:：]\s*\**\s*(あり|なし)/);
+  return { verdict: v ? v[1] : '該当なし', conf: c ? Math.min(100, +c[1]) : null, changed: ch ? ch[1]==='あり' : false };
 }
+function parseFinal(text){ const m = (text||'').match(/最終判定\s*[:：]\s*\**\s*(確定|保留|判断不能)/); return m ? m[1] : null; }
 function tally(finals){
   const vs = finals.filter(f=>f && !f.error).map(f=>f.verdict);
   const n = k => vs.filter(v=>v===k).length;
-  const yes=n('賛成'), no=n('反対'), cond=n('条件付き'), na=n('該当なし');
+  const yes=n('賛成'), no=n('反対'), cond=n('条件付き'), unk=n('判断不能'), na=n('該当なし');
+  const sub = `賛成${yes}・条件付き${cond}・反対${no}` + (unk?`・判断不能${unk}`:'') + (na?`・該当なし${na}`:'');
   if(vs.length===0) return { cls:'split', big:'応答なし', sub:'全ユニット応答失敗' };
-  if(na >= 2) return { cls:'split', big:'回答', sub:`賛否なしの案件（賛成${yes}・反対${no}・条件付き${cond}・該当なし${na}）` };
-  if(yes+cond >= 2 && yes >= cond) return { cls:'ok', big:'承認', sub:`賛成${yes}・条件付き${cond}・反対${no}` };
-  if(yes+cond >= 2) return { cls:'cond', big:'条件付承認', sub:`賛成${yes}・条件付き${cond}・反対${no}` };
-  if(no >= 2) return { cls:'ng', big:'否決', sub:`反対${no}・賛成${yes}・条件付き${cond}` };
-  return { cls:'split', big:'分裂', sub:`賛成${yes}・反対${no}・条件付き${cond}・該当なし${na}` };
+  if(unk >= 2) return { cls:'hold', big:'判断不能', sub };
+  if(na >= 2) return { cls:'split', big:'回答', sub:'賛否のない案件' };
+  if(yes >= 2) return { cls:'ok', big:'承認', sub };
+  if(yes + cond >= 2) return { cls:'cond', big:'条件付承認', sub };
+  if(no >= 2) return { cls:'ng', big:'否決', sub };
+  return { cls:'split', big:'分裂', sub };
 }
+function applyFinal(t, fin){
+  if(!t || !fin || fin==='確定') return t;
+  return { cls:'hold', big: fin==='保留' ? '保留' : '判断不能', sub: `票: ${t.big}（${t.sub}）→ 統合役が${fin}と判断` };
+}
+function shuffle(a){ a = a.slice(); for(let i=a.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [a[i],a[j]]=[a[j],a[i]]; } return a; }
 
 /* ========== 実行 ========== */
 async function startRun(){
-  const q = document.getElementById('q').value.trim();
+  const q = $('q').value.trim();
   if(!q) return toast('質問を入力してください');
-  if(!cfg.key){ toast('先にAPIキーを設定してください'); return openSettings(); }
-  await fetchModels();
-  const R = +cfg.rounds;
+  if(!cfg.key){ toast('先にOpenRouterのAPIキーを設定してください'); return openSettings(); }
+  await Promise.all([fetchOR(), fetchG()]);
+  googleBlocked = false;
+  const mode = cfg.mode, web = cfg.web, M = MODES[mode];
+  const specs = UNITS.map((u,i)=>unitSpec(i, mode, web));
   const s = {
-    id: Date.now().toString(36), q, created: Date.now(), web: cfg.web,
-    models: UNITS.map((u,i)=>unitModel(i)), intModel: intModel(),
-    rounds: [], finals: [null,null,null], synth: null, tally: null, cost: 0, status:'running'
+    id: Date.now().toString(36), q, created: Date.now(), mode, web, debate: cfg.debate,
+    specs, models: specs.map(x=>x.model), rounds: [], anon: [], debated:false, agree:null,
+    finals:[null,null,null], synth:null, final:null, tally:null, cost:0, rating:null, status:'running'
   };
   current = s; activeTab = 'sum';
   go('result'); render();
   abortCtl = new AbortController();
-  document.getElementById('stopBtn').classList.remove('hidden');
-  document.getElementById('runBtn').disabled = true;
+  $('stopBtn').classList.remove('hidden'); $('runBtn').disabled = true;
 
   try{
-    for(let r=0; r<=R; r++){
-      setPhase(r===0 ? 'PHASE 1 / 独立審議中…' : `PHASE ${r+1} / 討論ラウンド${r}…`);
-      const prev = s.rounds[r-1];
-      s.rounds[r] = [null,null,null];
-      await Promise.all(UNITS.map((u,i)=> runUnit(s, r, i,
-        r===0 ? msgsIndependent(i, q) : msgsDebate(i, q, prev, r, r===R))));
-      if(abortCtl.signal.aborted) throw new DOMException('aborted','AbortError');
+    // 01 独立審議（他機の意見は見せない）
+    setPhase('01 / 独立審議中…');
+    s.rounds[0] = [null,null,null];
+    await Promise.all(UNITS.map((u,i)=> runUnit(s, 0, i, msgsBlind(i, q), M)));
+    checkAbort();
+    // 02 初回判断は rounds[0] として確定保存（以後変更しない）
+
+    // 討論するか決める
+    let doDebate = cfg.debate === 'always';
+    const alive = s.rounds[0].filter(Boolean).length;
+    const vset = new Set(s.rounds[0].filter(Boolean).map(x=>x.verdict));
+    if(cfg.debate === 'auto' && alive >= 2 && vset.size > 1){
+      doDebate = true;                       // 判定が割れたら必ず討論
+      s.agree = { agree:false, reason:'判定が割れた' };
+    }else if(cfg.debate === 'auto' && alive >= 2){
+      setPhase('判定 / 意見の一致を確認中…');
+      s.agree = await judgeAgree(s, q);
+      const confs = s.rounds[0].filter(Boolean).map(x=>x.conf ?? 0);
+      doDebate = !(s.agree && s.agree.agree && Math.min(...confs) >= 60 && alive === 3);
     }
-    // 最終判定
-    const last = s.rounds[R];
-    s.finals = last.map((x,i)=> x ? { ...x, ...parseVerdict(x.text) } : { error:true, model:s.models[i] });
+    if(alive < 2) doDebate = false;
+
+    // 04-05 匿名の相互批判 → 再判定
+    if(doDebate){
+      s.debated = true;
+      setPhase('04 / 匿名で相互批判・再判定中…');
+      s.rounds[1] = [null,null,null];
+      s.anon = UNITS.map((u,i)=>{ const others = shuffle([0,1,2].filter(k=>k!==i)); return { A:others[0], B:others[1] }; });
+      await Promise.all(UNITS.map((u,i)=> s.rounds[0][i] ? runUnit(s, 1, i, msgsCross(i, q, s.rounds[0], s.anon[i]), M) : Promise.resolve()));
+      checkAbort();
+    }
+
+    // 06 集計
+    s.finals = UNITS.map((u,i)=> s.rounds[1]?.[i] || s.rounds[0][i] || { error:true, model:s.models[i] });
     s.tally = tally(s.finals);
     render();
-    // 統合
-    setPhase('FINAL / 統合中…');
-    s.synth = { text:'', model:s.intModel, streaming:true };
+
+    setPhase('06 / 統合中…');
+    const is = intSpec(mode, specs);
+    s.synth = { text:'', model:is.model, streaming:true };
     try{
-      const { text, usage } = await chat(s.intModel, msgsSynth(q, s.finals),
-        t => { s.synth.text = t; if(activeTab==='sum') renderBody(); }, abortCtl.signal);
-      s.synth.text = text; addCost(s, usage);
+      const r = await chat(is, msgsSynth(q, s.finals, s), t=>{ s.synth.text = t; if(activeTab==='sum') renderBody(); }, abortCtl.signal, 2500, M.effort, false);
+      s.synth.text = r.text; s.synth.model = r.usedSpec.model; addCost(s, r.usage, r.usedSpec);
+      s.final = parseFinal(r.text);
+      s.tally = applyFinal(s.tally, s.final);
     }catch(e){ if(e.name==='AbortError') throw e; s.synth.text = '統合に失敗しました: ' + e.message; }
     s.synth.streaming = false;
-    s.status = 'done'; setPhase('審議完了');
+    s.status = 'done';
+    setPhase(s.debated ? '審議完了（討論あり）' : (s.agree?.agree ? '審議完了（初回で一致したため討論省略）' : '審議完了'));
   }catch(e){
     s.status = e.name==='AbortError' ? 'aborted' : 'error';
     setPhase(e.name==='AbortError' ? '中断しました' : 'エラー: ' + e.message);
   }finally{
-    document.getElementById('stopBtn').classList.add('hidden');
-    document.getElementById('runBtn').disabled = false;
-    abortCtl = null;
-    saveSession(s); render();
+    $('stopBtn').classList.add('hidden'); $('runBtn').disabled = false;
+    abortCtl = null; saveSession(s); render();
   }
 }
-async function runUnit(s, r, i, messages){
-  const model = s.models[i];
-  s.rounds[r][i] = { text:'', model, streaming:true };
+function checkAbort(){ if(abortCtl?.signal.aborted) throw new DOMException('aborted','AbortError'); }
+async function judgeAgree(s, q){
+  try{
+    const r = await chat(judgeSpec(), msgsJudge(q, s.rounds[0]), null, abortCtl.signal, 300, 'low', false);
+    addCost(s, r.usage, r.usedSpec);
+    const m = r.text.match(/\{[\s\S]*\}/);
+    const j = m ? JSON.parse(m[0]) : null;
+    return j && typeof j.agree === 'boolean' ? j : { agree:false, reason:'判定できず' };
+  }catch(e){ if(e.name==='AbortError') throw e; return { agree:false, reason:'判定失敗' }; }
+}
+async function runUnit(s, r, i, messages, M){
+  const spec = s.specs[i];
+  s.rounds[r][i] = { text:'', model:spec.model, streaming:true };
   renderTriad();
   for(let attempt=0; attempt<2; attempt++){
     try{
-      const { text, usage } = await chat(withWeb(model), messages, t=>{
+      const res = await chat(spec, messages, t=>{
         s.rounds[r][i].text = t;
         if(activeTab===UNITS[i].key) renderBody();
-      }, abortCtl.signal);
-      if(!text.trim()) throw new Error('空の応答');
-      s.rounds[r][i] = { text, model, ...parseVerdict(text) };
-      addCost(s, usage); renderTriad(); if(activeTab===UNITS[i].key) renderBody();
+      }, abortCtl.signal, M.tokens, M.effort, s.web);
+      if(!res.text.trim()) throw new Error('空の応答');
+      s.rounds[r][i] = { text:res.text, model:res.usedSpec.model, ...parseOut(res.text) };
+      s.models[i] = res.usedSpec.model;
+      addCost(s, res.usage, res.usedSpec); renderTriad(); if(activeTab===UNITS[i].key) renderBody();
       return;
     }catch(e){
       if(e.name==='AbortError') throw e;
-      if(attempt===1){ s.rounds[r][i] = null; s.rounds[r].errors = s.rounds[r].errors||{}; s.rounds[r].errors[i] = e.message;
-        toast(`${UNITS[i].name} 応答失敗: ${e.message.slice(0,80)}`); renderTriad(); }
+      if(e.status===402){ s.rounds[r][i] = null; setErr(s, r, i, 'クレジット不足: OpenRouterでチャージしてください'); toast('OpenRouterのクレジットが不足しています'); renderTriad(); return; }
+      if(attempt===1){ s.rounds[r][i] = null; setErr(s, r, i, e.message); toast(`${UNITS[i].name} 応答失敗: ${e.message.slice(0,80)}`); renderTriad(); }
     }
   }
 }
-function addCost(s, u){ if(u && typeof u.cost==='number') s.cost += u.cost; renderCost(); }
+function setErr(s, r, i, msg){ s.errors = s.errors || {}; s.errors[r+'-'+i] = msg; }
+function addCost(s, u, spec){
+  if(spec?.provider==='google'){ s.freeCalls = (s.freeCalls||0) + 1; }
+  else if(u && typeof u.cost==='number') s.cost += u.cost;
+  renderCost();
+}
 function stopRun(){ abortCtl && abortCtl.abort(); }
-function setPhase(t){ document.getElementById('r-phase').textContent = t; }
+function setPhase(t){ $('r-phase').textContent = t; }
 
 /* ========== 描画 ========== */
 function go(v){
-  document.getElementById('v-home').classList.toggle('hidden', v!=='home');
-  document.getElementById('v-result').classList.toggle('hidden', v!=='result');
-  if(v==='home'){ renderHistory(); renderCfgSummary(); }
+  $('v-home').classList.toggle('hidden', v!=='home');
+  $('v-result').classList.toggle('hidden', v!=='result');
+  if(v==='home'){ renderHome(); }
   window.scrollTo(0,0);
 }
-function render(){ if(!current) return; document.getElementById('r-q').textContent = current.q; renderBanner(); renderTriad(); renderTabs(); renderBody(); renderCost(); }
+function setMode(m){ cfg.mode = m; save('magi_cfg2', cfg); renderHome(); }
+function setWeb(b){ cfg.web = b; save('magi_cfg2', cfg); renderHome(); }
+function renderHome(){
+  document.querySelectorAll('#modeSeg div').forEach(d=>{ d.className = d.dataset.m===cfg.mode ? ('on '+d.dataset.m) : ''; });
+  $('webChk').checked = !!cfg.web;
+  const specs = UNITS.map((u,i)=>unitSpec(i, cfg.mode, cfg.web));
+  const names = specs.map((sp,i)=> (sp.provider==='google' ? '🆓' : '') + sp.model.split('/').pop()).join(' / ');
+  const dbt = { auto:'割れた時だけ討論', always:'常に討論', never:'討論なし' }[cfg.debate];
+  $('cfgSummary').textContent = `${names}・${dbt}・${MODES[cfg.mode].hint}${cfg.web?'（Web検索で増える）':''}`;
+  renderHistory();
+}
+function render(){
+  if(!current) return;
+  const s = current;
+  $('r-meta').textContent = `質問 ・${MODES[s.mode]?.label||''}モード${s.web?'・Web検索':''}`;
+  $('r-q').textContent = s.q;
+  renderBanner(); renderTriad(); renderTabs(); renderBody(); renderCost(); renderRate();
+}
 function renderBanner(){
-  const b = document.getElementById('r-banner');
-  const t = current.tally;
-  if(!t){ b.className='banner split'; b.innerHTML='<div class="big">審議中</div><div class="sub">3ユニットが審議しています</div>'; return; }
+  const b = $('r-banner'), t = current.tally;
+  if(!t){ b.className='banner split'; b.innerHTML='<div class="big">審議中</div><div class="sub">3ユニットが独立して審議しています</div>'; return; }
   b.className = 'banner ' + t.cls;
   b.innerHTML = `<div class="big">${esc(t.big)}</div><div class="sub">${esc(t.sub)}</div>`;
 }
 function latestFor(i){
   const s = current;
-  for(let r=s.rounds.length-1; r>=0; r--){ const x = s.rounds[r]?.[i]; if(x) return { x, r, err: s.rounds[r].errors?.[i] }; if(s.rounds[r]?.errors?.[i]) return { x:null, r, err:s.rounds[r].errors[i] }; }
+  for(let r = s.rounds.length-1; r >= 0; r--){
+    const x = s.rounds[r]?.[i];
+    if(x) return { x, r };
+    if(s.errors?.[r+'-'+i]) return { x:null, r, err:s.errors[r+'-'+i] };
+  }
   return null;
 }
 function renderTriad(){
   if(!current) return;
-  const el = document.getElementById('r-triad');
-  el.innerHTML = UNITS.map((u,i)=>{
+  $('r-triad').innerHTML = UNITS.map((u,i)=>{
     const L = latestFor(i);
-    let st='待機', vd='', cls='';
+    let st='待機', vd='', cls='', chg='';
     if(L){
       if(!L.x){ st='応答なし'; cls='err'; }
-      else if(L.x.streaming){ st = `R${L.r+1} 審議中…`; cls='thinking'; }
-      else { st = `R${L.r+1} 完了` + (L.x.conf!=null ? ` / 確信${L.x.conf}` : ''); vd = L.x.verdict||''; cls = 'v-'+vd; }
+      else if(L.x.streaming){ st = (L.r===0?'独立審議中…':'再判定中…'); cls='thinking'; }
+      else {
+        st = (L.r===0?'初回':'再判定') + (L.x.conf!=null ? ` / 確信${L.x.conf}` : '');
+        vd = L.x.verdict||''; cls = 'v-'+vd;
+        if(L.r===1 && L.x.changed) chg = '意見変更';
+      }
     }
     return `<div class="unit ${u.key} ${cls}" onclick="setTab('${u.key}')">
+      ${chg?`<div class="chg">${chg}</div>`:''}
       <div class="nm">${u.name}</div>
       <div class="md">${esc((current.models[i]||'').split('/').pop())}</div>
       <div class="vd v-${esc(vd)}">${esc(vd)}</div>
@@ -481,106 +682,142 @@ function renderTriad(){
 }
 function renderTabs(){
   const tabs = [['sum','総合結論'], ...UNITS.map(u=>[u.key, u.name])];
-  document.getElementById('r-tabs').innerHTML = tabs.map(([k,n])=>`<div class="tab ${activeTab===k?'on':''}" onclick="setTab('${k}')">${n}</div>`).join('');
+  $('r-tabs').innerHTML = tabs.map(([k,n])=>`<div class="tab ${activeTab===k?'on':''}" onclick="setTab('${k}')">${n}</div>`).join('');
 }
 function setTab(k){ activeTab = k; renderTabs(); renderBody(); }
 function renderBody(){
-  const el = document.getElementById('r-body'); const s = current;
+  const el = $('r-body'), s = current;
   if(activeTab==='sum'){
-    if(!s.synth){ el.innerHTML = '<div class="card muted">3ユニットの審議が終わると、ここに総合結論が出ます。各ユニットのタブで途中経過をリアルタイムに見られます。</div>'; return; }
-    el.innerHTML = `<div class="card"><div class="muted">統合役: ${esc(s.synth.model)}${s.synth.streaming?' ・生成中…':''}</div><div class="md-body">${md(s.synth.text)}</div></div>`;
+    let pre = '';
+    if(s.agree) pre = `<div class="muted" style="margin-bottom:8px">初回一致チェック: ${s.agree.agree?'一致':'不一致'}（${esc(s.agree.reason||'')}）${s.debated?' → 討論を実施':' → 討論を省略'}</div>`;
+    if(!s.synth){ el.innerHTML = pre + '<div class="card muted">審議が終わると、ここに総合結論が出ます。各ユニットのタブで途中経過をリアルタイムに見られます。</div>'; return; }
+    el.innerHTML = pre + `<div class="card"><div class="muted">統合役: ${esc(s.synth.model)}${s.synth.streaming?' ・生成中…':''}</div><div class="md-body">${md(s.synth.text)}</div></div>`;
     return;
   }
-  const i = UNITS.findIndex(u=>u.key===activeTab);
-  const u = UNITS[i];
+  const i = UNITS.findIndex(u=>u.key===activeTab), u = UNITS[i];
   const html = s.rounds.map((round, r)=>{
-    const x = round?.[i]; const err = round?.errors?.[i];
-    const title = r===0 ? 'ラウンド1：独立審議' : `ラウンド${r+1}：討論`;
-    const meta = x && !x.streaming ? `${x.verdict||''}${x.conf!=null?' / 確信'+x.conf:''}` : (x ? '生成中…' : (err ? '応答なし' : '待機'));
+    const x = round?.[i]; const err = s.errors?.[r+'-'+i];
+    let title = r===0 ? '01 独立審議（初回・確定）' : '04-05 相互批判・再判定';
+    if(r===1 && s.anon?.[i]) title += `<br><span class="muted">機A=${UNITS[s.anon[i].A].name} / 機B=${UNITS[s.anon[i].B].name}</span>`;
+    const meta = x && !x.streaming ? `${x.verdict||''}${x.conf!=null?' / 確信'+x.conf:''}${r===1&&x.changed?' / 意見変更':''}` : (x ? '生成中…' : (err ? '応答なし' : '待機'));
     const open = r===s.rounds.length-1 ? 'open' : '';
     const content = x ? md(x.text) : `<p class="muted">${esc(err||'まだ回答がありません')}</p>`;
-    return `<details class="round" ${open}><summary><span>${title}</span><span class="muted">${esc(meta)}</span></summary><div class="inner md-body">${content}</div></details>`;
+    return `<details class="round" ${open}><summary><span>${title}</span><span class="muted" style="white-space:nowrap">${esc(meta)}</span></summary><div class="inner md-body">${content}</div></details>`;
   }).join('');
   el.innerHTML = `<div class="muted" style="margin-bottom:8px"><b style="color:${u.color}">${u.name}</b>（${u.jp}）・モデル: ${esc(s.models[i])}</div>` + (html || '<div class="card muted">まだ回答がありません</div>');
 }
-function renderCost(){ if(current) document.getElementById('r-cost').textContent = current.cost ? `API費用: $${current.cost.toFixed(4)}（約${Math.round(current.cost*155)}円）` : ''; }
-function renderCfgSummary(){
-  const names = UNITS.map((u,i)=>`${u.name.split('-')[0]}: ${cfg.units[i].model==='auto' ? 'auto' : cfg.units[i].model.split('/').pop()}`).join(' / ');
-  document.getElementById('cfgSummary').textContent = `${names} ・討論${cfg.rounds}回${cfg.web?' ・Web検索ON':''}`;
+function renderCost(){
+  if(!current) return;
+  const s = current; const parts = [];
+  if(s.cost) parts.push(`API費用: $${s.cost.toFixed(4)}（約${(s.cost*155).toFixed(s.cost*155<10?1:0)}円）`);
+  if(s.freeCalls) parts.push(`Google無料枠 ${s.freeCalls}回`);
+  $('r-cost').textContent = parts.join(' ・');
 }
+function renderRate(){
+  const s = current;
+  $('r-rate').classList.toggle('hidden', s.status!=='done');
+  document.querySelectorAll('#r-rate .btn').forEach(b=> b.classList.toggle('on', b.dataset.r===s.rating));
+}
+function rate(r){ current.rating = current.rating===r ? null : r; saveSession(current); renderRate(); toast('記録しました'); }
 
-/* ========== 履歴 ========== */
-function sessions(){ return load('magi_sessions', []); }
+/* ========== 履歴・精度記録 ========== */
+function sessions(){ return load('magi_sessions2', []); }
 function saveSession(s){
   const list = sessions().filter(x=>x.id!==s.id);
   list.unshift(s);
-  save('magi_sessions', list.slice(0, 60));
+  save('magi_sessions2', list.slice(0, 80));
 }
 function renderHistory(){
-  const list = sessions(); const el = document.getElementById('history');
+  const list = sessions(); const el = $('history');
+  // 精度の集計
+  const rated = list.filter(s=>s.rating);
+  const acc = arr => { const g = arr.filter(s=>s.rating==='good').length; return arr.length ? Math.round(g/arr.length*100)+'%' : '-'; };
+  const costSum = list.reduce((a,s)=>a+(s.cost||0),0);
+  $('stats').textContent = rated.length
+    ? `評価済み${rated.length}件・正解率 ${acc(rated)}（節約 ${acc(rated.filter(s=>s.mode==='eco'))} / 本気 ${acc(rated.filter(s=>s.mode==='max'))}）・累計費用 約${Math.round(costSum*155)}円`
+    : (list.length ? `累計費用 約${Math.round(costSum*155)}円` : '');
   if(!list.length){ el.innerHTML = '<div class="hist-item muted">まだ審議はありません</div>'; return; }
+  const rmark = { good:'✓', meh:'△', bad:'✗' };
   el.innerHTML = list.map(s=>{
     const t = s.tally || { cls:'split', big: s.status==='aborted'?'中断':'—' };
-    const d = new Date(s.created); const ds = `${d.getMonth()+1}/${d.getDate()} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
-    return `<div class="hist-item" onclick="openSession('${s.id}')"><span class="pill ${t.cls}">${esc(t.big)}</span><span class="q">${esc(s.q)}</span><span class="muted">${ds}</span><span onclick="event.stopPropagation();delSession('${s.id}')" style="padding:0 4px;color:var(--muted)">✕</span></div>`;
+    const d = new Date(s.created); const ds = `${d.getMonth()+1}/${d.getDate()}`;
+    return `<div class="hist-item" onclick="openSession('${s.id}')">
+      <span class="pill ${t.cls}">${esc(t.big)}</span>
+      ${s.mode==='max'?'<span class="pill max">本気</span>':''}
+      <span class="q">${esc(s.q)}</span>
+      <span class="muted">${s.rating?rmark[s.rating]+' ':''}${ds}</span>
+      <span onclick="event.stopPropagation();delSession('${s.id}')" style="padding:0 4px;color:var(--muted)">✕</span></div>`;
   }).join('');
 }
-function openSession(id){ const s = sessions().find(x=>x.id===id); if(!s) return; current = s; activeTab='sum'; go('result'); setPhase(s.status==='done'?'審議完了':(s.status==='aborted'?'中断':'')); render(); }
-function delSession(id){ save('magi_sessions', sessions().filter(x=>x.id!==id)); renderHistory(); }
+function openSession(id){
+  const s = sessions().find(x=>x.id===id); if(!s) return;
+  current = s; activeTab='sum'; go('result');
+  setPhase(s.status==='done' ? (s.debated?'審議完了（討論あり）':'審議完了') : (s.status==='aborted'?'中断':'エラー'));
+  render();
+}
+function delSession(id){ save('magi_sessions2', sessions().filter(x=>x.id!==id)); renderHistory(); }
 async function copyAll(){
   const s = current; if(!s) return;
   let out = `# 審議案件\n${s.q}\n\n# 判定: ${s.tally?.big||'-'}（${s.tally?.sub||''}）\n\n# 総合結論\n${s.synth?.text||''}\n`;
-  UNITS.forEach((u,i)=>{ out += `\n\n# ${u.name}（${s.models[i]}）\n`; s.rounds.forEach((r,k)=>{ out += `\n## ラウンド${k+1}\n${r?.[i]?.text||'（応答なし）'}\n`; }); });
+  UNITS.forEach((u,i)=>{
+    out += `\n\n# ${u.name}（${s.models[i]}）\n`;
+    s.rounds.forEach((r,k)=>{ out += `\n## ${k===0?'独立審議':'相互批判・再判定'}\n${r?.[i]?.text||'（応答なし）'}\n`; });
+  });
   try{ await navigator.clipboard.writeText(out); toast('コピーしました'); }catch(e){ toast('コピーできませんでした'); }
 }
 
 /* ========== 設定 ========== */
-async function openSettings(){
-  document.getElementById('settings').classList.remove('hidden');
-  document.getElementById('s-key').value = cfg.key;
-  document.getElementById('s-rounds').value = String(cfg.rounds);
-  document.getElementById('s-web').checked = !!cfg.web;
-  document.getElementById('s-int-model').value = cfg.intModel;
-  document.getElementById('s-units').innerHTML = UNITS.map((u,i)=>`
+function modelInputs(mode){
+  return UNITS.map((u,i)=>`
     <div class="unit-set ${u.key}">
-      <b style="color:${u.color}">${u.name}</b> <span class="muted">${u.jp}・初期: ${u.vendor}</span>
-      <label>モデル（auto または OpenRouterのモデルID）</label>
-      <input id="s-model-${i}" list="modelList" value="${esc(cfg.units[i].model)}" oninput="updResolved()">
-      <div class="resolved" id="s-res-${i}"></div>
-      <label>人格・役割（システムプロンプト）</label>
-      <textarea id="s-persona-${i}" style="min-height:90px;font-size:14px">${esc(cfg.units[i].persona)}</textarea>
+      <b style="color:${u.color};font-size:13px">${u.name}</b> <span class="muted">${u.vendor}</span>
+      <input id="s-${mode}-${i}" list="modelList" value="${esc(cfg.models[mode][i])}" oninput="updResolved()" style="margin-top:4px">
+      <div class="resolved" id="s-${mode}-res-${i}"></div>
     </div>`).join('');
+}
+async function openSettings(){
+  $('settings').classList.remove('hidden');
+  $('s-key').value = cfg.key; $('s-gkey').value = cfg.gkey;
+  $('s-debate').value = cfg.debate; $('s-int').value = cfg.intModel;
+  $('s-eco').innerHTML = modelInputs('eco');
+  $('s-max').innerHTML = modelInputs('max');
+  $('s-personas').innerHTML = UNITS.map((u,i)=>`<label>${u.name}</label><textarea id="s-p-${i}" style="min-height:80px;font-size:14px">${esc(cfg.personas[i])}</textarea>`).join('');
   updResolved();
-  await fetchModels(); updResolved();
+  await Promise.all([fetchOR(), fetchG()]); updResolved();
 }
 function updResolved(){
-  UNITS.forEach((u,i)=>{
-    const v = document.getElementById('s-model-'+i)?.value.trim() || 'auto';
-    const el = document.getElementById('s-res-'+i);
-    if(!el) return;
-    el.textContent = v==='auto' ? (models.length ? '→ ' + resolveModel('auto', u.vendor) : '→ 取得中…') : (models.length && !models.find(m=>m.id===v) ? '⚠ OpenRouterに見つかりません' : '');
-    el.style.color = el.textContent.startsWith('⚠') ? 'var(--ng)' : 'var(--ok)';
+  ['eco','max'].forEach(mode=>{
+    UNITS.forEach((u,i)=>{
+      const el = $(`s-${mode}-res-${i}`); if(!el) return;
+      const v = $(`s-${mode}-${i}`).value.trim() || 'auto';
+      const saved = cfg.models[mode][i]; cfg.models[mode][i] = v;     // 一時的に反映して解決
+      const sp = unitSpec(i, mode, false);
+      cfg.models[mode][i] = saved;
+      let txt = '→ ' + (sp.provider==='google' ? '🆓 Google直接: ' : 'OpenRouter: ') + sp.model;
+      let bad = false;
+      if(v!=='auto' && v.includes('/') && orModels.length && !orModels.find(m=>m.id===v)){ txt = '⚠ OpenRouterに見つかりません'; bad = true; }
+      if(v==='auto' && !orModels.length) txt = '→ 取得中…';
+      el.textContent = txt; el.style.color = bad ? 'var(--ng)' : 'var(--ok)';
+    });
   });
-  const iv = document.getElementById('s-int-model').value.trim() || 'auto';
-  document.getElementById('s-int-res').textContent = iv==='auto' ? '→ MELCHIORと同じモデル' : '';
 }
 function saveSettings(){
-  cfg.key = document.getElementById('s-key').value.trim();
-  cfg.rounds = +document.getElementById('s-rounds').value;
-  cfg.web = document.getElementById('s-web').checked;
-  cfg.intModel = document.getElementById('s-int-model').value.trim() || 'auto';
-  cfg.units = UNITS.map((u,i)=>({
-    model: document.getElementById('s-model-'+i).value.trim() || 'auto',
-    persona: document.getElementById('s-persona-'+i).value.trim() || u.persona
-  }));
-  save('magi_cfg', cfg); closeSettings(); renderCfgSummary(); toast('保存しました');
+  const gkeyChanged = $('s-gkey').value.trim() !== cfg.gkey;
+  cfg.key = $('s-key').value.trim();
+  cfg.gkey = $('s-gkey').value.trim();
+  cfg.debate = $('s-debate').value;
+  cfg.intModel = $('s-int').value.trim() || 'auto';
+  ['eco','max'].forEach(mode=> UNITS.forEach((u,i)=>{ cfg.models[mode][i] = $(`s-${mode}-${i}`).value.trim() || 'auto'; }));
+  cfg.personas = UNITS.map((u,i)=> $(`s-p-${i}`).value.trim() || u.persona);
+  if(gkeyChanged){ gModels = []; fetchG().then(renderHome); }
+  save('magi_cfg2', cfg); closeSettings(); renderHome(); toast('保存しました');
 }
-function resetPersonas(){ UNITS.forEach((u,i)=>{ document.getElementById('s-persona-'+i).value = u.persona; }); }
-function closeSettings(){ document.getElementById('settings').classList.add('hidden'); }
+function resetPersonas(){ UNITS.forEach((u,i)=>{ $(`s-p-${i}`).value = u.persona; }); }
+function closeSettings(){ $('settings').classList.add('hidden'); }
 
 /* ========== 起動 ========== */
 go('home');
-fetchModels();
+Promise.all([fetchOR(), fetchG()]).then(renderHome);
 if('serviceWorker' in navigator){ navigator.serviceWorker.register('sw.js').catch(()=>{}); }
 </script>
 </body>
