@@ -16,15 +16,15 @@
 <style>
 :root{
   --bg:#0b0d10; --panel:#13171c; --panel2:#1a1f26; --line:#2a313b;
-  --text:#e6e8eb; --muted:#8b939e; --accent:#ff8a1f;
+  --text:#e6e8eb; --muted:#8b939e; --accent:#ff8a1f; --strong:#ffd59a;
   --ok:#3ddc84; --ng:#ff4d4d; --cond:#ffc83d; --hold:#6ea8ff; --none:#8b939e;
   --m:#4fc3f7; --b:#ff8a1f; --c:#c792ea;
 }
 *{box-sizing:border-box}
 html,body{margin:0;background:var(--bg);color:var(--text);
-  font-family:-apple-system,BlinkMacSystemFont,"Hiragino Sans","Noto Sans JP",sans-serif;font-size:15px;line-height:1.6}
+  font-family:-apple-system,BlinkMacSystemFont,"Hiragino Sans","Noto Sans JP",sans-serif;font-size:15px;line-height:1.65}
 body{padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left)}
-.wrap{max-width:860px;margin:0 auto;padding:12px 14px 80px}
+.wrap{max-width:860px;margin:0 auto;padding:12px 14px 90px}
 header{display:flex;align-items:center;justify-content:space-between;padding:6px 0 12px;border-bottom:1px solid var(--line);margin-bottom:14px}
 .logo{font-family:"SF Mono",Menlo,Consolas,monospace;font-weight:800;letter-spacing:.25em;color:var(--accent);font-size:20px;cursor:pointer}
 .logo small{display:block;font-size:9px;letter-spacing:.3em;color:var(--muted);font-weight:500}
@@ -32,9 +32,10 @@ header{display:flex;align-items:center;justify-content:space-between;padding:6px
 .btn:active{transform:scale(.98)}
 .btn.primary{background:var(--accent);color:#111;border-color:var(--accent);font-weight:700}
 .btn.danger{border-color:var(--ng);color:var(--ng)}
+.btn.small{padding:6px 10px;font-size:13px}
 .btn:disabled{opacity:.4}
 textarea,input,select{width:100%;background:var(--panel);color:var(--text);border:1px solid var(--line);border-radius:10px;padding:10px 12px;font-size:16px;font-family:inherit}
-textarea{min-height:110px;resize:vertical}
+textarea{min-height:100px;resize:vertical}
 label{display:block;font-size:12px;color:var(--muted);margin:10px 0 4px}
 .row{display:flex;gap:8px;align-items:center}
 .row > *{flex:1}
@@ -43,14 +44,22 @@ label{display:block;font-size:12px;color:var(--muted);margin:10px 0 4px}
 .muted{color:var(--muted);font-size:12px}
 h2{font-size:14px;letter-spacing:.1em;color:var(--muted);margin:18px 0 8px;font-weight:600}
 
+/* controls */
 .seg{display:flex;background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:3px;gap:3px}
-.seg div{flex:1;text-align:center;padding:8px 6px;border-radius:8px;font-size:14px;cursor:pointer;color:var(--muted)}
+.seg div{flex:1;text-align:center;padding:7px 6px;border-radius:8px;font-size:14px;cursor:pointer;color:var(--muted)}
 .seg div.on{background:var(--accent);color:#111;font-weight:700}
 .seg div.on.max{background:var(--ng);color:#fff}
-.opts{display:flex;gap:10px;align-items:center;margin-top:10px;flex-wrap:wrap}
-.chk{display:flex;align-items:center;gap:6px;font-size:14px}
+.opts{display:flex;gap:12px;align-items:center;margin-top:10px;flex-wrap:wrap}
+.chk{display:flex;align-items:center;gap:5px;font-size:13px;white-space:nowrap}
 .chk input{width:auto;margin:0}
+.attach-row{display:flex;gap:8px;align-items:center;margin-top:10px;flex-wrap:wrap}
+.chip{display:inline-flex;align-items:center;gap:6px;background:var(--panel2);border:1px solid var(--line);border-radius:999px;padding:4px 10px;font-size:12px;max-width:100%}
+.chip .nm{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:160px}
+.chip .x{color:var(--muted);cursor:pointer;padding-left:2px}
+.est{font-size:12px;color:var(--strong);margin-top:8px}
+.warn{font-size:12px;color:var(--cond);margin-top:6px}
 
+/* triad */
 .triad{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin:12px 0}
 .unit{background:var(--panel);border:2px solid var(--line);border-radius:12px;padding:10px 6px;text-align:center;cursor:pointer;position:relative;transition:border-color .3s}
 .unit .nm{font-family:Menlo,monospace;font-weight:800;font-size:12px;letter-spacing:.06em}
@@ -77,22 +86,52 @@ h2{font-size:14px;letter-spacing:.1em;color:var(--muted);margin:18px 0 8px;font-
 .tabs{display:flex;gap:6px;overflow-x:auto;margin:14px 0 10px;padding-bottom:2px}
 .tab{flex:0 0 auto;padding:7px 12px;border-radius:999px;border:1px solid var(--line);background:var(--panel);font-size:13px;cursor:pointer;white-space:nowrap}
 .tab.on{background:var(--accent);color:#111;border-color:var(--accent);font-weight:700}
+.turns{display:flex;gap:6px;overflow-x:auto;margin-bottom:10px}
+.turn-tab{flex:0 0 auto;padding:5px 11px;border-radius:8px;border:1px solid var(--line);background:var(--panel2);font-size:12px;cursor:pointer;font-family:Menlo,monospace}
+.turn-tab.on{border-color:var(--accent);color:var(--accent);font-weight:700}
 
+/* rich text */
 .md-body{word-wrap:break-word;overflow-wrap:anywhere}
-.md-body h1,.md-body h2,.md-body h3{color:var(--text);letter-spacing:0;font-size:15px;margin:14px 0 6px}
 .md-body p{margin:6px 0}
 .md-body ul,.md-body ol{padding-left:20px;margin:6px 0}
+.md-body li{margin:3px 0}
+.md-body strong{color:var(--strong)}
 .md-body code{background:var(--panel2);padding:1px 5px;border-radius:5px;font-size:13px}
 .md-body pre{background:var(--panel2);padding:10px;border-radius:8px;overflow-x:auto}
 .md-body a{color:var(--m)}
 .md-body table{border-collapse:collapse;display:block;overflow-x:auto}
 .md-body td,.md-body th{border:1px solid var(--line);padding:4px 8px}
 .md-body hr{border:none;border-top:1px solid var(--line)}
+.md-body h1,.md-body h2,.md-body h3,.md-body h4{font-size:14px;margin:12px 0 4px}
+.sec{border-left:4px solid var(--line);background:var(--panel2);border-radius:10px;padding:8px 12px 8px;margin:10px 0}
+.sec > .hd{font-size:12px;font-weight:800;letter-spacing:.08em;margin-bottom:2px}
+.sec-concl{border-color:var(--uc,var(--accent));background:color-mix(in srgb, var(--uc,var(--accent)) 12%, var(--panel))}
+.sec-concl > .hd{color:var(--uc,var(--accent))}
+.sec-concl .bodytxt{font-size:16px;font-weight:600}
+.sec-basis{border-color:var(--ok)} .sec-basis > .hd{color:var(--ok)}
+.sec-risk{border-color:var(--cond)} .sec-risk > .hd{color:var(--cond)}
+.sec-cross{border-color:var(--hold)} .sec-cross > .hd{color:var(--hold)}
+.sec-final{border-color:var(--accent);background:color-mix(in srgb, var(--accent) 14%, var(--panel))} .sec-final > .hd{color:var(--accent)}
+.sec-final .bodytxt{font-size:16px;font-weight:600}
+.sec-agree{border-color:var(--hold)} .sec-agree > .hd{color:var(--hold)}
+.sec-units{border-color:var(--m)} .sec-units > .hd{color:var(--m)}
+.sec-minor{border-color:var(--ng)} .sec-minor > .hd{color:var(--ng)}
+.sec-plain > .hd{color:var(--muted)}
+.unverified{background:color-mix(in srgb, var(--ng) 20%, transparent);color:#ff9b9b;border-radius:4px;padding:0 4px;font-size:12px;font-weight:700;white-space:nowrap}
+.metarow{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:10px}
+.badge{display:inline-block;border-radius:6px;padding:2px 10px;font-weight:800;font-size:13px;border:1px solid currentColor}
+.badge.v-賛成{color:var(--ok)} .badge.v-反対{color:var(--ng)} .badge.v-条件付き{color:var(--cond)} .badge.v-判断不能{color:var(--hold)} .badge.v-該当なし{color:var(--none)}
+.badge.f-確定{color:var(--ok)} .badge.f-保留{color:var(--hold)} .badge.f-判断不能{color:var(--hold)}
+.badge.chg{color:var(--cond)}
+.meter{flex:1;min-width:120px;display:flex;align-items:center;gap:6px;font-size:12px;color:var(--muted)}
+.meter .bar{flex:1;height:6px;background:var(--line);border-radius:3px;overflow:hidden}
+.meter .bar i{display:block;height:100%;background:var(--uc,var(--accent))}
+.chgreason{font-size:13px;color:var(--cond);margin-top:6px}
 
 details.round{background:var(--panel);border:1px solid var(--line);border-radius:12px;margin-bottom:8px}
 details.round summary{padding:11px 14px;cursor:pointer;font-weight:600;font-size:13px;list-style:none;display:flex;justify-content:space-between;gap:8px}
 details.round summary::-webkit-details-marker{display:none}
-details.round .inner{padding:0 14px 14px;border-top:1px solid var(--line)}
+details.round .inner{padding:4px 12px 12px;border-top:1px solid var(--line)}
 
 .hist-item{padding:11px 14px;border-bottom:1px solid var(--line);cursor:pointer;display:flex;gap:8px;align-items:center}
 .hist-item:last-child{border-bottom:none}
@@ -102,42 +141,37 @@ details.round .inner{padding:0 14px 14px;border-top:1px solid var(--line)}
 .pill.cond{color:var(--cond);border-color:var(--cond)} .pill.hold{color:var(--hold);border-color:var(--hold)} .pill.split{color:var(--muted)}
 .pill.max{color:var(--ng);border-color:var(--ng)}
 
-.rate{display:flex;gap:6px;margin-top:12px}
+.rate{display:flex;gap:6px;margin-top:8px}
 .rate .btn{flex:1;font-size:13px;padding:8px 4px}
 .rate .btn.on{border-color:var(--accent);color:var(--accent);font-weight:700}
+.followup{margin-top:18px;border-top:1px dashed var(--line);padding-top:12px}
 
 .modal-bg{position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:50;overflow-y:auto;padding:env(safe-area-inset-top) 0 env(safe-area-inset-bottom)}
 .modal{max-width:640px;margin:20px auto;background:var(--bg);border:1px solid var(--line);border-radius:16px;padding:16px}
-.sec{border-top:1px solid var(--line);margin-top:16px;padding-top:6px}
-.sec > b{font-size:14px}
+.ssec{border-top:1px solid var(--line);margin-top:16px;padding-top:6px}
+.ssec > b{font-size:14px}
 .unit-set{border-left:3px solid var(--line);padding-left:10px;margin:10px 0}
 .unit-set.m{border-color:var(--m)} .unit-set.b{border-color:var(--b)} .unit-set.c{border-color:var(--c)}
 .resolved{font-size:11px;margin-top:3px;word-break:break-all;color:var(--ok)}
 .toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom));transform:translateX(-50%);background:var(--panel2);border:1px solid var(--line);padding:10px 16px;border-radius:10px;z-index:99;font-size:13px;max-width:90vw}
 .phase{font-family:Menlo,monospace;font-size:12px;color:var(--accent);text-align:center;margin:6px 0;min-height:18px}
 details.plain summary{cursor:pointer;color:var(--muted);font-size:13px;margin-top:10px}
+.qtext{white-space:pre-wrap;max-height:160px;overflow:auto}
 </style>
 </head>
 <body>
 <div class="wrap">
   <header>
-    <div class="logo" onclick="go('home')">MAGI<small>MULTI-AI GOVERNANCE INTERFACE v2</small></div>
+    <div class="logo" onclick="go('home')">MAGI<small>MULTI-AI GOVERNANCE INTERFACE v3</small></div>
     <button class="btn" onclick="openSettings()">⚙ 設定</button>
   </header>
 
   <!-- HOME -->
   <section id="v-home">
     <div class="card">
-      <textarea id="q" placeholder="審議してほしい質問・お願い・調べてほしいことを入力"></textarea>
-      <div class="opts">
-        <div class="seg" id="modeSeg" style="flex:1;min-width:180px">
-          <div data-m="eco" onclick="setMode('eco')">節約</div>
-          <div data-m="max" onclick="setMode('max')">本気</div>
-        </div>
-        <label class="chk"><input type="checkbox" id="webChk" onchange="setWeb(this.checked)">Web検索</label>
-      </div>
-      <div class="muted" id="cfgSummary" style="margin-top:8px"></div>
-      <button class="btn primary" id="runBtn" style="width:100%;margin-top:10px" onclick="startRun()">審議開始</button>
+      <textarea id="q" placeholder="審議してほしい質問・お願い・調べてほしいことを入力" oninput="renderEst()"></textarea>
+      <div class="ctrl" data-slot="home"></div>
+      <button class="btn primary" id="runBtn" style="width:100%;margin-top:10px" onclick="startRun(false)">審議開始</button>
     </div>
     <h2>履歴</h2>
     <div class="muted" id="stats" style="margin:-4px 0 8px"></div>
@@ -146,7 +180,8 @@ details.plain summary{cursor:pointer;color:var(--muted);font-size:13px;margin-to
 
   <!-- RESULT -->
   <section id="v-result" class="hidden">
-    <div class="card"><div class="muted" id="r-meta">質問</div><div id="r-q" style="white-space:pre-wrap"></div></div>
+    <div class="turns" id="r-turns"></div>
+    <div class="card"><div class="muted" id="r-meta">質問</div><div id="r-q" class="qtext"></div><div id="r-docs" class="attach-row"></div></div>
     <div class="phase" id="r-phase"></div>
     <div id="r-banner" class="banner split"><div class="big">審議中</div><div class="sub">—</div></div>
     <div class="triad" id="r-triad"></div>
@@ -166,8 +201,16 @@ details.plain summary{cursor:pointer;color:var(--muted);font-size:13px;margin-to
       </div>
     </div>
     <div class="muted" id="r-cost" style="margin-top:12px;text-align:right"></div>
+    <div id="r-follow" class="followup hidden">
+      <b style="font-size:14px">続けて質問・情報を追加</b>
+      <div class="muted">3機はそれぞれ自分のこれまでの主張と総合結論を覚えたまま議論します。</div>
+      <textarea id="fq" style="margin-top:8px;min-height:80px" placeholder="例：この条件やったらどう？／この情報も踏まえて考え直して" oninput="renderEst()"></textarea>
+      <div class="ctrl" data-slot="follow"></div>
+      <button class="btn primary" id="followBtn" style="width:100%;margin-top:10px" onclick="startRun(true)">続けて審議</button>
+    </div>
   </section>
 </div>
+<input type="file" id="fileIn" multiple accept="image/*,.pdf,.txt,.md,.csv,.json,.docx,text/plain" class="hidden" onchange="onFiles(this.files); this.value='';">
 
 <!-- SETTINGS -->
 <div class="modal-bg hidden" id="settings">
@@ -180,7 +223,7 @@ details.plain summary{cursor:pointer;color:var(--muted);font-size:13px;margin-to
 
     <label>Google AI Studio APIキー（任意・CASPERを無料枠で動かす）</label>
     <input id="s-gkey" type="password" placeholder="AIza..." autocomplete="off">
-    <div class="muted"><a href="https://aistudio.google.com/apikey" style="color:var(--m)">aistudio.google.com/apikey</a> で発行。無料枠は入力内容がGoogleの改善に使われるため、機密は入れないこと。無料枠が使えないモデルやWeb検索ON時は自動でOpenRouter経由になります。</div>
+    <div class="muted"><a href="https://aistudio.google.com/apikey" style="color:var(--m)">aistudio.google.com/apikey</a> で発行。無料枠は入力内容がGoogleの改善に使われます。「機密」にチェックした審議では無料枠を使いません。</div>
 
     <label>討論</label>
     <select id="s-debate">
@@ -189,13 +232,17 @@ details.plain summary{cursor:pointer;color:var(--muted);font-size:13px;margin-to
       <option value="never">討論しない（独立回答のみ）</option>
     </select>
 
-    <div class="sec"><b>節約モードのモデル</b>
-      <div id="s-eco"></div>
-    </div>
-    <div class="sec"><b>本気モードのモデル</b>
-      <div id="s-max"></div>
-    </div>
-    <div class="sec">
+    <label>長い資料の自動要約（添付時に「要約してから審議」を自動でONにする目安）</label>
+    <select id="s-sumth">
+      <option value="0">自動ONにしない</option>
+      <option value="10000">1万トークン超</option>
+      <option value="30000">3万トークン超（おすすめ）</option>
+      <option value="80000">8万トークン超</option>
+    </select>
+
+    <div class="ssec"><b>節約モードのモデル</b><div id="s-eco"></div></div>
+    <div class="ssec"><b>本気モードのモデル</b><div id="s-max"></div></div>
+    <div class="ssec">
       <b>統合役（最終結論をまとめるAI）</b>
       <label>モデル（auto＝各モードのMELCHIORと同じ）</label>
       <input id="s-int" list="modelList" placeholder="auto">
@@ -213,24 +260,27 @@ details.plain summary{cursor:pointer;color:var(--muted);font-size:13px;margin-to
 </div>
 
 <script>
-/* ========== 定義 ========== */
+/* =====================================================================
+   定義
+   ===================================================================== */
 const NEUTRAL = (n, name) => `あなたは合議制AI「MAGI」の第${n}ユニット ${name}。他の2機と対等な、独立した判断者である。特定の役割や立場は持たず、自分の知識と推論で最も妥当と考える結論を出す。事実と推測をはっきり区別し、不確かな点は不確かと明言する。`;
 const UNITS = [
-  { key:'m', name:'MELCHIOR-1', jp:'メルキオール', vendor:'anthropic', color:'var(--m)', persona: NEUTRAL(1,'MELCHIOR') },
-  { key:'b', name:'BALTHASAR-2', jp:'バルタザール', vendor:'openai',   color:'var(--b)', persona: NEUTRAL(2,'BALTHASAR') },
-  { key:'c', name:'CASPER-3',   jp:'カスパー',     vendor:'google',   color:'var(--c)', persona: NEUTRAL(3,'CASPER') },
+  { key:'m', name:'MELCHIOR-1', jp:'メルキオール', vendor:'anthropic', color:'#4fc3f7', persona: NEUTRAL(1,'MELCHIOR') },
+  { key:'b', name:'BALTHASAR-2', jp:'バルタザール', vendor:'openai',   color:'#ff8a1f', persona: NEUTRAL(2,'BALTHASAR') },
+  { key:'c', name:'CASPER-3',   jp:'カスパー',     vendor:'google',   color:'#c792ea', persona: NEUTRAL(3,'CASPER') },
 ];
 const MODES = {
-  eco: { label:'節約', tokens:2500, effort:'low',    hint:'目安 1問 数円' },
-  max: { label:'本気', tokens:6000, effort:'medium', hint:'目安 1問 100〜400円' },
+  eco: { label:'節約', tokens:2500, effort:'low' },
+  max: { label:'本気', tokens:6000, effort:'medium' },
 };
+const YEN = 155;
 
 const FORMAT = `
 ## 結論
-（1〜3文で端的に）
+（1〜3文で端的に。一番大事な部分は **太字**）
 
 ## 根拠
-（主張ごとに根拠を書く。Web検索の結果を使った主張には出典URLを付ける。裏付けのない主張には【未確認】と付ける）
+（主張ごとに箇条書き。Web検索や資料に基づく主張は出典URLや資料の該当箇所を付ける。裏付けのない主張には【未確認】と付ける）
 
 ## 不明点・反証の可能性
 （どんな事実が出てきたら結論が変わるか）
@@ -241,45 +291,78 @@ const FORMAT = `
 
 const RULES = `
 # 出力ルール
-- 日本語で書く。質問者は会社経営者。結論を先に、具体的に、簡潔に。
-- 「判定」は、質問がYes/No型（やるべきか・正しいか・AとBどちらか等）ならその提案への賛否。Aか Bかの比較なら、質問文で先に挙げられた方（A）を選ぶなら「賛成」、Bなら「反対」とし、結論にどちらかを明記する。調べもの等で賛否がない場合は「該当なし」。情報不足で判断できなければ「判断不能」。
+- 日本語で書く。質問者は会社経営者。結論を先に、具体的に、簡潔に。重要な語句は **太字** にする。
+- 「判定」は、質問がYes/No型（やるべきか・正しいか・AとBどちらか等）ならその提案への賛否。AかBかの比較なら、質問文で先に挙げられた方（A）を選ぶなら「賛成」、Bなら「反対」とし、結論にどちらかを明記する。調べもの等で賛否がない場合は「該当なし」。情報不足で判断できなければ「判断不能」。
 - 確信度は自分の正答確率の正直な見積もり。わからないことを断定しない。
+- 添付資料がある場合、資料に書かれていることと、あなたの推測をはっきり分ける。
 - 必ず次の形式で答える：
 ${FORMAT}`;
 
 const DEFAULT_CFG = {
-  v:2, key:'', gkey:'', mode:'eco', web:false, debate:'auto', intModel:'auto',
+  v:3, key:'', gkey:'', mode:'eco', web:false, priv:false, debate:'auto', intModel:'auto', sumTh:30000,
   models:{ eco:['auto','auto','auto'], max:['auto','auto','auto'] },
   personas: UNITS.map(u=>u.persona),
 };
 
-/* ========== 状態 ========== */
+/* =====================================================================
+   状態・ユーティリティ
+   ===================================================================== */
 const clone = o => JSON.parse(JSON.stringify(o));
+const $ = id => document.getElementById(id);
 let cfg = loadCfg();
 let orModels = [], gModels = [];
-let current = null, abortCtl = null, activeTab = 'sum', googleBlocked = false;
+let current = null, viewTurn = 0, abortCtl = null, activeTab = 'sum', googleBlocked = false;
+let pending = [];           // 添付待ちの資料
+let sumOn = false, sumTouched = false;
 
 function loadCfg(){
-  let c = load('magi_cfg2', null);
-  if(!c){
-    c = clone(DEFAULT_CFG);
-    const old = load('magi_cfg', null);           // v1からキーだけ引き継ぐ
-    if(old && old.key) c.key = old.key;
-    save('magi_cfg2', c);
-  }
-  c = Object.assign(clone(DEFAULT_CFG), c);
+  let c = load('magi_cfg3') || load('magi_cfg2');
+  if(!c){ c = clone(DEFAULT_CFG); const old = load('magi_cfg'); if(old && old.key) c.key = old.key; }
+  c = Object.assign(clone(DEFAULT_CFG), c, { v:3 });
   c.models = Object.assign(clone(DEFAULT_CFG.models), c.models);
   if(!Array.isArray(c.personas) || c.personas.length!==3) c.personas = UNITS.map(u=>u.persona);
+  save('magi_cfg3', c);
   return c;
 }
-function load(k, d){ try{ const v = localStorage.getItem(k); return v ? JSON.parse(v) : (d===null?null:clone(d)); }catch(e){ return d===null?null:clone(d); } }
-function save(k, v){ try{ localStorage.setItem(k, JSON.stringify(v)); }catch(e){ toast('保存に失敗しました（容量不足の可能性）'); } }
-function toast(msg){ const t=document.createElement('div'); t.className='toast'; t.textContent=msg; document.body.appendChild(t); setTimeout(()=>t.remove(), 3200); }
+function load(k){ try{ const v = localStorage.getItem(k); return v ? JSON.parse(v) : null; }catch(e){ return null; } }
+function save(k, v){ try{ localStorage.setItem(k, JSON.stringify(v)); }catch(e){ toast('設定の保存に失敗しました'); } }
+function toast(msg){ const t=document.createElement('div'); t.className='toast'; t.textContent=msg; document.body.appendChild(t); setTimeout(()=>t.remove(), 3400); }
 function esc(s){ return String(s??'').replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
-function md(s){ try{ return DOMPurify.sanitize(marked.parse(s||'')); }catch(e){ return '<pre>'+esc(s)+'</pre>'; } }
-const $ = id => document.getElementById(id);
+function md(s){
+  let h; try{ h = DOMPurify.sanitize(marked.parse(s||'')); }catch(e){ h = '<pre>'+esc(s)+'</pre>'; }
+  return h.replace(/<a /g, '<a target="_blank" rel="noopener" ').replace(/【未確認】/g, '<span class="unverified">未確認</span>');
+}
+function estTokens(t){ if(!t) return 0; let na=0; for(const ch of t){ if(ch.charCodeAt(0)>127) na++; } return Math.ceil(na*1.05 + (t.length-na)/4); }
+function yen(usd){ const y = usd*YEN; return y < 10 ? y.toFixed(1) : Math.round(y).toLocaleString(); }
 
-/* ========== モデル一覧・auto解決 ========== */
+/* ---------- IndexedDB（履歴・資料の保存） ---------- */
+const DB = {
+  db:null,
+  open(){ if(this.db) return Promise.resolve(this.db);
+    return new Promise((res, rej)=>{ const r = indexedDB.open('magi', 1);
+      r.onupgradeneeded = () => r.result.createObjectStore('sessions', { keyPath:'id' });
+      r.onsuccess = () => { this.db = r.result; res(this.db); }; r.onerror = () => rej(r.error); }); },
+  async tx(mode, fn){ const db = await this.open(); return new Promise((res, rej)=>{ const t = db.transaction('sessions', mode); const st = t.objectStore('sessions'); const out = fn(st); t.oncomplete = () => res(out && out.result !== undefined ? out.result : out); t.onerror = () => rej(t.error); }); },
+  put(s){ return this.tx('readwrite', st => st.put(JSON.parse(JSON.stringify(s)))); },
+  del(id){ return this.tx('readwrite', st => st.delete(id)); },
+  async all(){ const db = await this.open(); return new Promise((res, rej)=>{ const r = db.transaction('sessions').objectStore('sessions').getAll(); r.onsuccess = () => res(r.result||[]); r.onerror = () => rej(r.error); }); },
+};
+let sessionCache = [];
+async function loadSessions(){
+  try{
+    const old = load('magi_sessions2');           // v2の履歴を移行
+    if(Array.isArray(old) && old.length){
+      for(const o of old){ await DB.put({ id:o.id, created:o.created, updated:o.created, title:o.q, turns:[{ ...o, docs:[] }] }); }
+      localStorage.removeItem('magi_sessions2');
+    }
+    sessionCache = (await DB.all()).sort((a,b)=>(b.updated||0)-(a.updated||0));
+  }catch(e){ console.warn(e); sessionCache = []; }
+}
+async function saveSession(s){ s.updated = Date.now(); try{ await DB.put(s); }catch(e){ toast('履歴の保存に失敗しました'); } const i = sessionCache.findIndex(x=>x.id===s.id); if(i>=0) sessionCache.splice(i,1); sessionCache.unshift(s); }
+
+/* =====================================================================
+   モデル一覧・auto解決・料金
+   ===================================================================== */
 async function fetchOR(){
   if(orModels.length) return;
   try{
@@ -327,13 +410,12 @@ function pickG(mode){
   return pool[0] || null;
 }
 /** ユニットiの接続先 { provider:'or'|'google', model, orModel } */
-function unitSpec(i, mode, web){
+function unitSpec(i, mode, web, priv){
   const v = (cfg.models[mode][i]||'auto').trim();
   const vendor = UNITS[i].vendor;
   const orModel = (v==='auto' || !v.includes('/')) ? pickOR(mode, vendor) : v;
   if(v !== 'auto' && v.includes('/')) return { provider:'or', model:v, orModel:v };
-  const directOK = vendor==='google' && cfg.gkey && !web;
-  if(directOK){
+  if(vendor==='google' && cfg.gkey && !web && !priv){
     const gm = v==='auto' ? pickG(mode) : v;
     if(gm) return { provider:'google', model:gm, orModel };
   }
@@ -344,23 +426,102 @@ function intSpec(mode, specs){
   if(v==='auto') return specs[0].provider==='or' ? { provider:'or', model:specs[0].model, orModel:specs[0].model } : specs[0];
   return v.includes('/') ? { provider:'or', model:v, orModel:v } : { provider:'google', model:v, orModel:pickOR(mode,'google') };
 }
-/** 一致判定用の安いモデル */
-function judgeSpec(){
-  if(cfg.gkey){ const g = pickG('eco'); if(g) return { provider:'google', model:g, orModel:pickOR('eco','google') }; }
+/** 安い補助モデル（一致判定・要約） */
+function cheapSpec(priv){
+  if(cfg.gkey && !priv){ const g = pickG('eco'); if(g) return { provider:'google', model:g, orModel:pickOR('eco','google') }; }
   const m = pickOR('eco','google'); return { provider:'or', model:m, orModel:m };
 }
+function priceOf(spec){
+  if(spec.provider==='google') return { pin:0, pout:0 };
+  const m = orModels.find(x=>x.id===spec.model);
+  return m && m.pricing ? { pin:+m.pricing.prompt||0, pout:+m.pricing.completion||0 } : null;
+}
 
-/* ========== API呼び出し（ストリーミング） ========== */
+/* =====================================================================
+   添付ファイル
+   ===================================================================== */
+function loadScript(src){ return new Promise((res, rej)=>{ if([...document.scripts].some(s=>s.src===src)) return res(); const s=document.createElement('script'); s.src=src; s.onload=res; s.onerror=()=>rej(new Error('読み込み失敗: '+src)); document.head.appendChild(s); }); }
+async function ensurePdf(){
+  if(window.pdfjsLib) return;
+  await loadScript('https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js');
+  window.pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+}
+async function ensureMammoth(){ if(!window.mammoth) await loadScript('https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js'); }
+function readAs(file, how){ return new Promise((res, rej)=>{ const r = new FileReader(); r.onload=()=>res(r.result); r.onerror=()=>rej(r.error); r[how](file); }); }
+async function imageToDataUrl(blobOrCanvas, max=1568){
+  let canvas;
+  if(blobOrCanvas instanceof HTMLCanvasElement) canvas = blobOrCanvas;
+  else {
+    const url = URL.createObjectURL(blobOrCanvas);
+    const img = await new Promise((res, rej)=>{ const im = new Image(); im.onload=()=>res(im); im.onerror=rej; im.src=url; });
+    const sc = Math.min(1, max/Math.max(img.width, img.height));
+    canvas = document.createElement('canvas'); canvas.width = Math.round(img.width*sc); canvas.height = Math.round(img.height*sc);
+    canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height); URL.revokeObjectURL(url);
+  }
+  return canvas.toDataURL('image/jpeg', 0.85);
+}
+function newDoc(name, kind, payload){
+  const d = { id: Math.random().toString(36).slice(2,9), name, kind };
+  if(kind==='text'){ d.text = payload; d.tokens = estTokens(payload); }
+  else { d.dataUrl = payload; d.tokens = 1600; }
+  return d;
+}
+async function onFiles(files){
+  for(const f of files){
+    try{
+      toast(`読み込み中: ${f.name}`);
+      const name = f.name, low = name.toLowerCase();
+      if(f.type.startsWith('image/')){
+        pending.push(newDoc(name, 'image', await imageToDataUrl(f)));
+      }else if(low.endsWith('.pdf') || f.type==='application/pdf'){
+        await ensurePdf();
+        const pdf = await pdfjsLib.getDocument({ data: new Uint8Array(await readAs(f, 'readAsArrayBuffer')) }).promise;
+        let text = '';
+        for(let p=1; p<=pdf.numPages; p++){
+          const tc = await (await pdf.getPage(p)).getTextContent();
+          text += `\n--- ${p}ページ ---\n` + tc.items.map(it=>it.str + (it.hasEOL?'\n':'')).join('');
+        }
+        if(text.replace(/[\s\-0-9ページ]/g,'').length > 200){ pending.push(newDoc(name, 'text', text.trim())); }
+        else {  // スキャンPDF → 画像化（最大8ページ）
+          const n = Math.min(pdf.numPages, 8);
+          for(let p=1; p<=n; p++){
+            const page = await pdf.getPage(p); const vp0 = page.getViewport({ scale:1 });
+            const vp = page.getViewport({ scale: Math.min(2, 1400/vp0.width) });
+            const c = document.createElement('canvas'); c.width = vp.width; c.height = vp.height;
+            await page.render({ canvasContext:c.getContext('2d'), viewport:vp }).promise;
+            pending.push(newDoc(`${name} p${p}`, 'image', await imageToDataUrl(c)));
+          }
+          if(pdf.numPages > 8) toast('画像のPDFは先頭8ページだけ読み込みました');
+        }
+      }else if(low.endsWith('.docx')){
+        await ensureMammoth();
+        const r = await mammoth.extractRawText({ arrayBuffer: await readAs(f, 'readAsArrayBuffer') });
+        pending.push(newDoc(name, 'text', r.value.trim()));
+      }else{
+        pending.push(newDoc(name, 'text', String(await readAs(f, 'readAsText')).trim()));
+      }
+    }catch(e){ console.error(e); toast(`読み込めませんでした: ${f.name}（${e.message||e}）`); }
+  }
+  autoSum(); renderCtrl(); renderEst();
+}
+function removePending(id){ pending = pending.filter(d=>d.id!==id); autoSum(); renderCtrl(); renderEst(); }
+function pendingTextTokens(){ return pending.filter(d=>d.kind==='text').reduce((a,d)=>a+d.tokens,0); }
+function autoSum(){ if(!sumTouched) sumOn = cfg.sumTh>0 && pendingTextTokens() > cfg.sumTh; }
+
+/* =====================================================================
+   API呼び出し（ストリーミング）
+   ===================================================================== */
 async function chatRaw(spec, messages, onDelta, signal, maxTokens, effort, web){
   let url, headers, body;
   if(spec.provider==='google'){
     url = 'https://generativelanguage.googleapis.com/v1beta/openai/chat/completions';
     headers = { 'Authorization':'Bearer '+cfg.gkey, 'Content-Type':'application/json' };
-    body = { model:spec.model, messages, stream:true, max_tokens:maxTokens, stream_options:{ include_usage:true } };
+    body = { model:spec.model, messages: stripCache(messages), stream:true, max_tokens:maxTokens, stream_options:{ include_usage:true } };
   }else{
     url = 'https://openrouter.ai/api/v1/chat/completions';
     headers = { 'Authorization':'Bearer '+cfg.key, 'Content-Type':'application/json', 'HTTP-Referer':location.origin, 'X-Title':'MAGI' };
-    body = { model: spec.model + (web ? ':online' : ''), messages, stream:true, max_tokens:maxTokens, usage:{ include:true } };
+    const cacheOK = /^(anthropic|google)\//.test(spec.model);
+    body = { model: spec.model + (web ? ':online' : ''), messages: cacheOK ? messages : stripCache(messages), stream:true, max_tokens:maxTokens, usage:{ include:true } };
     if(effort) body.reasoning = { effort };
   }
   const res = await fetch(url, { method:'POST', signal, headers, body:JSON.stringify(body) });
@@ -387,7 +548,10 @@ async function chatRaw(spec, messages, onDelta, signal, maxTokens, effort, web){
   if(err && !text) throw new Error(err);
   return { text, usage };
 }
-/** Google直接が失敗したらOpenRouterに自動フォールバック */
+function stripCache(messages){
+  return messages.map(m => Array.isArray(m.content) ? { ...m, content: m.content.map(p => { const { cache_control, ...rest } = p; return rest; }) } : m);
+}
+/** Google直接が失敗したらOpenRouterへ自動フォールバック */
 async function chat(spec, messages, onDelta, signal, maxTokens, effort, web){
   if(spec.provider==='google' && googleBlocked) spec = { provider:'or', model:spec.orModel, orModel:spec.orModel };
   try{
@@ -401,55 +565,90 @@ async function chat(spec, messages, onDelta, signal, maxTokens, effort, web){
   }
 }
 
-/* ========== プロンプト ========== */
+/* =====================================================================
+   プロンプト組み立て
+   ===================================================================== */
 function sysMsg(i){ return { role:'system', content: cfg.personas[i] + '\n' + RULES }; }
-function msgsBlind(i, q){
-  return [ sysMsg(i), { role:'user', content:
-`【審議案件】
-${q}
-
-これは第1段階（独立審議）です。他のユニットの意見は見えません。自分の判断で、独自に審議してください。` } ];
+/** ターンの資料を content parts に（テキスト資料はキャッシュ対象） */
+function docParts(T){
+  const parts = [];
+  const texts = (T.docs||[]).filter(d=>d.kind==='text');
+  if(T.summary){
+    parts.push({ type:'text', text:`# 添付資料の要約（原文：${texts.map(d=>d.name).join('、')}／約${texts.reduce((a,d)=>a+d.tokens,0).toLocaleString()}トークン分を要約）\n${T.summary}`, cache_control:{ type:'ephemeral' } });
+  }else if(texts.length){
+    parts.push({ type:'text', text: '# 添付資料\n' + texts.map(d=>`## 資料: ${d.name}\n<<<\n${d.text}\n>>>`).join('\n\n'), cache_control:{ type:'ephemeral' } });
+  }
+  for(const d of (T.docs||[]).filter(d=>d.kind==='image')){
+    parts.push({ type:'text', text:`（画像: ${d.name}）` });
+    parts.push({ type:'image_url', image_url:{ url:d.dataUrl } });
+  }
+  return parts;
 }
-function msgsCross(i, q, r1, anon){
-  const mine = r1[i]?.text || '（あなたの初回回答は取得できませんでした）';
+function limitCacheMarks(msgs){   // Anthropicのキャッシュ指定は最大4か所 → 新しい方から3つ残す
+  let n = 0;
+  for(let k = msgs.length-1; k >= 0; k--){
+    const c = msgs[k].content; if(!Array.isArray(c)) continue;
+    for(const p of c){ if(p.cache_control){ n++; if(n > 3) delete p.cache_control; } }
+  }
+  return msgs;
+}
+function turnUserMsg(s, k){
+  const T = s.turns[k];
+  const intro = k===0
+    ? `【審議案件】\n${T.q}\n\nこれは第1段階（独立審議）です。他のユニットの意見は見えません。自分の判断で、独自に審議してください。`
+    : `【前回の総合結論】\n${s.turns[k-1].synth?.text || '（なし）'}\n\n【追加の質問・情報】\n${T.q}\n\nこれは続きの審議（第1段階・独立審議）です。これまでの議論と自分の過去の主張を踏まえつつ、新しい質問・情報について自分の判断で独自に審議してください。考えを変える場合は理由を明記すること。`;
+  return { role:'user', content: [ ...docParts(T), { type:'text', text:intro } ] };
+}
+/** ユニットiの会話履歴（自分の過去の最終回答だけを覚えている） */
+function historyMsgs(s, t, i){
+  const msgs = [ sysMsg(i) ];
+  for(let k=0; k<=t; k++){
+    msgs.push(turnUserMsg(s, k));
+    if(k < t) msgs.push({ role:'assistant', content: s.turns[k].finals?.[i]?.text || '（このターンは応答できませんでした）' });
+  }
+  return limitCacheMarks(clone(msgs));
+}
+function msgsCross(s, t, i){
+  const T = s.turns[t], anon = T.anon[i], r1 = T.rounds[0];
   const others = Object.entries(anon).map(([lab, k]) => `### 機${lab}の回答\n${r1[k]?.text || '（応答なし）'}`).join('\n\n');
-  return [ sysMsg(i), { role:'user', content:
-`【審議案件】
-${q}
-
-これは第2段階（相互批判と再判定）です。他の2機の回答を匿名で示します。
-
-## あなたの初回回答（確定済み）
-${mine}
+  return [ ...historyMsgs(s, t, i),
+    { role:'assistant', content: r1[i]?.text || '（初回回答なし）' },
+    { role:'user', content:
+`これは第2段階（相互批判と再判定）です。上のあなたの回答は初回判断として確定済みです。他の2機の回答を匿名で示します。
 
 ## 他機の回答（匿名）
 ${others}
 
 # 指示
-1. 最初に「## 他機への指摘」として、機A・機Bの主張の誤り・根拠の弱さ・見落としを具体的に指摘する。正しい点は認める。評価の対象は根拠の妥当性であり、多数派かどうかではない。
+1. 最初に「## 他機への指摘」として、機A・機Bの主張の誤り・根拠の弱さ・見落としを具体的に指摘する。正しい点は認める。評価の対象は根拠の妥当性であり、多数派かどうかではない。資料がある場合は資料の記述と照らし合わせる。
 2. 多数派に合わせるための同調は禁止。根拠が覆されない限り初回の判断を維持する。
 3. 次に出力ルールの形式で再判定した回答を書く。
 4. 最後に次の2行を必ず付ける：
 変更: あり / なし
 変更理由: （意見を変えた場合は、決め手になった具体的な根拠。変えていなければ「なし」）` } ];
 }
-function msgsJudge(q, r1){
-  const body = UNITS.map((u,i)=>`### ${u.name}\n${(r1[i]?.text||'（応答なし）').slice(0,3000)}`).join('\n\n');
+function msgsJudge(T){
+  const body = UNITS.map((u,i)=>`### ${u.name}\n${(T.rounds[0][i]?.text||'（応答なし）').slice(0,3000)}`).join('\n\n');
   return [ { role:'system', content:'あなたは審議の進行役。3つの回答の結論が実質的に一致しているかだけを判定する。JSONのみを出力する。' },
-           { role:'user', content:`【質問】\n${q}\n\n${body}\n\n3つの回答の「結論」は実質的に同じか？ 細部や表現の違いは無視し、質問者が取るべき行動や答えの中身が同じなら一致とする。\n次のJSONだけを出力：{"agree": true または false, "reason": "30字以内"}` } ];
+           { role:'user', content:`【質問】\n${T.q.slice(0,1500)}\n\n${body}\n\n3つの回答の「結論」は実質的に同じか？ 細部や表現の違いは無視し、質問者が取るべき行動や答えの中身が同じなら一致とする。\n次のJSONだけを出力：{"agree": true または false, "reason": "30字以内"}` } ];
 }
-function msgsSynth(q, finals, s){
-  const body = UNITS.map((u,i)=>{
-    const f = finals[i];
-    return `### ${u.name}（モデル: ${f?.model||'-'}${f?.changed?'・討論で意見変更':''}）\n${f?.text || '（応答なし）'}`;
-  }).join('\n\n');
-  const initial = s.rounds[1] ? '\n\n## 参考：討論前の初回判定\n' + UNITS.map((u,i)=>`- ${u.name}: ${s.rounds[0][i]?.verdict||'-'}（確信度${s.rounds[0][i]?.conf??'-'}）`).join('\n') : '';
+function msgsSummarize(T){
+  const texts = T.docs.filter(d=>d.kind==='text');
+  return [ { role:'system', content:'あなたは資料の要約担当。後で3つのAIがこの要約だけを見て議論する。事実・数字・日付・人物・発言を正確に残し、解釈や評価は加えない。重要な原文は「」で短く引用する。日本語で。' },
+           { role:'user', content:`【このあと審議する質問】\n${T.q.slice(0,2000)}\n\n【資料】\n${texts.map(d=>`## ${d.name}\n${d.text}`).join('\n\n')}\n\n上の質問の審議に必要な情報を落とさないように、資料を最大5000字で要約してください。時系列があるものは時系列で。質問と関係が薄い部分は短くまとめてよい。` } ];
+}
+function msgsSynth(s, t, finals){
+  const T = s.turns[t];
+  const prev = t>0 ? '## これまでの審議\n' + s.turns.slice(0,t).map((P,k)=>`### Q${k+1}: ${P.q.slice(0,400)}\n総合結論: ${(P.synth?.text||'').replace(/最終判定.*\n?/,'').slice(0,1200)}`).join('\n\n') + '\n\n' : '';
+  const docNote = (T.docs||[]).length ? `（添付資料: ${T.docs.map(d=>d.name).join('、')}）\n` : '';
+  const body = UNITS.map((u,i)=>{ const f = finals[i]; return `### ${u.name}（モデル: ${f?.model||'-'}${f?.changed?'・討論で意見変更':''}）\n${f?.text || '（応答なし）'}`; }).join('\n\n');
+  const initial = T.rounds[1] ? '\n\n## 参考：討論前の初回判定\n' + UNITS.map((u,i)=>`- ${u.name}: ${T.rounds[0][i]?.verdict||'-'}（確信度${T.rounds[0][i]?.conf??'-'}）`).join('\n') : '';
   return [
-    { role:'system', content:'あなたは合議制AI「MAGI」の統合役。新たな判断者ではなく、3ユニットの最終意見と根拠を公平に集約する。多数派に機械的に従わず、根拠の強さを重視し、正しそうな少数意見を切り捨てない。3機が一致していても同じ誤情報に依存していれば保留する。合意率を正解確率として扱わない。日本語で、結論を先に、簡潔に。' },
+    { role:'system', content:'あなたは合議制AI「MAGI」の統合役。新たな判断者ではなく、3ユニットの最終意見と根拠を公平に集約する。多数派に機械的に従わず、根拠の強さを重視し、正しそうな少数意見を切り捨てない。3機が一致していても同じ誤情報に依存していれば保留する。合意率を正解確率として扱わない。日本語で、結論を先に、簡潔に。重要な語句は **太字**。' },
     { role:'user', content:
-`【審議案件】
-${q}
-
+`${prev}【今回の${t>0?'追加の質問':'審議案件'}】
+${T.q.slice(0,3000)}${T.q.length>3000?'\n（以下略）':''}
+${docNote}
 ## 3ユニットの最終意見
 ${body}${initial}
 
@@ -472,13 +671,16 @@ ${body}${initial}
 （無視すべきでない反対意見、【未確認】の重要な主張）` } ];
 }
 
-/* ========== パース・集計 ========== */
+/* =====================================================================
+   パース・集計
+   ===================================================================== */
 function parseOut(text){
   const t = text || '';
   const v = t.match(/判定\s*[:：]\s*\**\s*(賛成|反対|条件付き|判断不能|該当なし)/);
   const c = t.match(/確信度\s*[:：]\s*\**\s*(\d{1,3})/);
   const ch = t.match(/変更\s*[:：]\s*\**\s*(あり|なし)/);
-  return { verdict: v ? v[1] : '該当なし', conf: c ? Math.min(100, +c[1]) : null, changed: ch ? ch[1]==='あり' : false };
+  const rs = t.match(/変更理由\s*[:：]\s*(.+)/);
+  return { verdict: v ? v[1] : '該当なし', conf: c ? Math.min(100, +c[1]) : null, changed: ch ? ch[1]==='あり' : false, reason: rs ? rs[1].replace(/\*+/g,'').trim() : '' };
 }
 function parseFinal(text){ const m = (text||'').match(/最終判定\s*[:：]\s*\**\s*(確定|保留|判断不能)/); return m ? m[1] : null; }
 function tally(finals){
@@ -500,184 +702,270 @@ function applyFinal(t, fin){
 }
 function shuffle(a){ a = a.slice(); for(let i=a.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [a[i],a[j]]=[a[j],a[i]]; } return a; }
 
-/* ========== 実行 ========== */
-async function startRun(){
-  const q = $('q').value.trim();
-  if(!q) return toast('質問を入力してください');
+/* =====================================================================
+   実行
+   ===================================================================== */
+async function startRun(isFollow){
+  const qEl = isFollow ? $('fq') : $('q');
+  const q = qEl.value.trim();
+  if(!q && !pending.length) return toast('質問を入力してください');
   if(!cfg.key){ toast('先にOpenRouterのAPIキーを設定してください'); return openSettings(); }
+  if(isFollow && (!current || current.turns.some(T=>T.status==='running'))) return;
   await Promise.all([fetchOR(), fetchG()]);
   googleBlocked = false;
-  const mode = cfg.mode, web = cfg.web, M = MODES[mode];
-  const specs = UNITS.map((u,i)=>unitSpec(i, mode, web));
-  const s = {
-    id: Date.now().toString(36), q, created: Date.now(), mode, web, debate: cfg.debate,
+
+  const mode = cfg.mode, web = cfg.web, priv = cfg.priv, M = MODES[mode];
+  const specs = UNITS.map((u,i)=>unitSpec(i, mode, web, priv));
+  const T = {
+    q: q || '（添付資料を読んで、要点と注目すべき点を審議してください）', docs: pending, summary:null, wantSum: sumOn && pending.some(d=>d.kind==='text'),
+    created: Date.now(), mode, web, priv, debate: cfg.debate,
     specs, models: specs.map(x=>x.model), rounds: [], anon: [], debated:false, agree:null,
-    finals:[null,null,null], synth:null, final:null, tally:null, cost:0, rating:null, status:'running'
+    finals:[null,null,null], synth:null, final:null, tally:null, cost:0, freeCalls:0, rating:null, status:'running', errors:{}
   };
-  current = s; activeTab = 'sum';
+  let s;
+  if(isFollow){ s = current; s.turns.push(T); }
+  else { s = { id: Date.now().toString(36), created: Date.now(), updated: Date.now(), title: T.q.slice(0,80), turns:[T] }; }
+  const t = s.turns.length - 1;
+  pending = []; sumTouched = false; sumOn = false; qEl.value = '';
+  current = s; viewTurn = t; activeTab = 'sum';
   go('result'); render();
   abortCtl = new AbortController();
-  $('stopBtn').classList.remove('hidden'); $('runBtn').disabled = true;
+  setRunning(true);
 
   try{
-    // 01 独立審議（他機の意見は見せない）
+    // 00 長い資料の要約
+    if(T.wantSum){
+      setPhase('00 / 資料を要約中…');
+      const r = await chat(cheapSpec(priv), msgsSummarize(T), null, abortCtl.signal, 7000, 'low', false);
+      addCost(T, r.usage, r.usedSpec);
+      T.summary = r.text.trim() || null;
+      T.sumModel = r.usedSpec.model;
+      checkAbort();
+    }
+    // 01 独立審議
     setPhase('01 / 独立審議中…');
-    s.rounds[0] = [null,null,null];
-    await Promise.all(UNITS.map((u,i)=> runUnit(s, 0, i, msgsBlind(i, q), M)));
+    T.rounds[0] = [null,null,null];
+    await Promise.all(UNITS.map((u,i)=> runUnit(s, t, 0, i, historyMsgs(s, t, i), M)));
     checkAbort();
-    // 02 初回判断は rounds[0] として確定保存（以後変更しない）
+    // 02 初回判断は rounds[0] として確定保存
 
-    // 討論するか決める
+    // 討論するか
     let doDebate = cfg.debate === 'always';
-    const alive = s.rounds[0].filter(Boolean).length;
-    const vset = new Set(s.rounds[0].filter(Boolean).map(x=>x.verdict));
+    const alive = T.rounds[0].filter(Boolean).length;
+    const vset = new Set(T.rounds[0].filter(Boolean).map(x=>x.verdict));
     if(cfg.debate === 'auto' && alive >= 2 && vset.size > 1){
-      doDebate = true;                       // 判定が割れたら必ず討論
-      s.agree = { agree:false, reason:'判定が割れた' };
+      doDebate = true; T.agree = { agree:false, reason:'判定が割れた' };
     }else if(cfg.debate === 'auto' && alive >= 2){
       setPhase('判定 / 意見の一致を確認中…');
-      s.agree = await judgeAgree(s, q);
-      const confs = s.rounds[0].filter(Boolean).map(x=>x.conf ?? 0);
-      doDebate = !(s.agree && s.agree.agree && Math.min(...confs) >= 60 && alive === 3);
+      T.agree = await judgeAgree(T, priv);
+      const confs = T.rounds[0].filter(Boolean).map(x=>x.conf ?? 0);
+      doDebate = !(T.agree && T.agree.agree && Math.min(...confs) >= 60 && alive === 3);
     }
     if(alive < 2) doDebate = false;
 
     // 04-05 匿名の相互批判 → 再判定
     if(doDebate){
-      s.debated = true;
+      T.debated = true;
       setPhase('04 / 匿名で相互批判・再判定中…');
-      s.rounds[1] = [null,null,null];
-      s.anon = UNITS.map((u,i)=>{ const others = shuffle([0,1,2].filter(k=>k!==i)); return { A:others[0], B:others[1] }; });
-      await Promise.all(UNITS.map((u,i)=> s.rounds[0][i] ? runUnit(s, 1, i, msgsCross(i, q, s.rounds[0], s.anon[i]), M) : Promise.resolve()));
+      T.rounds[1] = [null,null,null];
+      T.anon = UNITS.map((u,i)=>{ const o = shuffle([0,1,2].filter(k=>k!==i)); return { A:o[0], B:o[1] }; });
+      await Promise.all(UNITS.map((u,i)=> T.rounds[0][i] ? runUnit(s, t, 1, i, msgsCross(s, t, i), M) : Promise.resolve()));
       checkAbort();
     }
 
-    // 06 集計
-    s.finals = UNITS.map((u,i)=> s.rounds[1]?.[i] || s.rounds[0][i] || { error:true, model:s.models[i] });
-    s.tally = tally(s.finals);
+    // 06 集計・統合
+    T.finals = UNITS.map((u,i)=> T.rounds[1]?.[i] || T.rounds[0][i] || { error:true, model:T.models[i] });
+    T.tally = tally(T.finals);
     render();
-
     setPhase('06 / 統合中…');
     const is = intSpec(mode, specs);
-    s.synth = { text:'', model:is.model, streaming:true };
+    T.synth = { text:'', model:is.model, streaming:true };
     try{
-      const r = await chat(is, msgsSynth(q, s.finals, s), t=>{ s.synth.text = t; if(activeTab==='sum') renderBody(); }, abortCtl.signal, 2500, M.effort, false);
-      s.synth.text = r.text; s.synth.model = r.usedSpec.model; addCost(s, r.usage, r.usedSpec);
-      s.final = parseFinal(r.text);
-      s.tally = applyFinal(s.tally, s.final);
-    }catch(e){ if(e.name==='AbortError') throw e; s.synth.text = '統合に失敗しました: ' + e.message; }
-    s.synth.streaming = false;
-    s.status = 'done';
-    setPhase(s.debated ? '審議完了（討論あり）' : (s.agree?.agree ? '審議完了（初回で一致したため討論省略）' : '審議完了'));
+      const r = await chat(is, msgsSynth(s, t, T.finals), txt=>{ T.synth.text = txt; if(isViewing(s,t) && activeTab==='sum') renderBody(); }, abortCtl.signal, 3000, M.effort, false);
+      T.synth.text = r.text; T.synth.model = r.usedSpec.model; addCost(T, r.usage, r.usedSpec);
+      T.final = parseFinal(r.text);
+      T.tally = applyFinal(T.tally, T.final);
+    }catch(e){ if(e.name==='AbortError') throw e; T.synth.text = '統合に失敗しました: ' + e.message; }
+    T.synth.streaming = false;
+    T.status = 'done';
+    setPhase(phaseDone(T));
   }catch(e){
-    s.status = e.name==='AbortError' ? 'aborted' : 'error';
+    T.status = e.name==='AbortError' ? 'aborted' : 'error';
+    if(T.synth) T.synth.streaming = false;
     setPhase(e.name==='AbortError' ? '中断しました' : 'エラー: ' + e.message);
   }finally{
-    $('stopBtn').classList.add('hidden'); $('runBtn').disabled = false;
-    abortCtl = null; saveSession(s); render();
+    setRunning(false); abortCtl = null;
+    await saveSession(s); render();
   }
 }
+function phaseDone(T){ return T.debated ? '審議完了（討論あり）' : (T.agree?.agree ? '審議完了（初回で一致したため討論省略）' : '審議完了'); }
+function isViewing(s, t){ return current === s && viewTurn === t; }
+function setRunning(b){
+  $('stopBtn').classList.toggle('hidden', !b);
+  $('runBtn').disabled = b; $('followBtn').disabled = b;
+}
 function checkAbort(){ if(abortCtl?.signal.aborted) throw new DOMException('aborted','AbortError'); }
-async function judgeAgree(s, q){
+async function judgeAgree(T, priv){
   try{
-    const r = await chat(judgeSpec(), msgsJudge(q, s.rounds[0]), null, abortCtl.signal, 300, 'low', false);
-    addCost(s, r.usage, r.usedSpec);
+    const r = await chat(cheapSpec(priv), msgsJudge(T), null, abortCtl.signal, 300, 'low', false);
+    addCost(T, r.usage, r.usedSpec);
     const m = r.text.match(/\{[\s\S]*\}/);
     const j = m ? JSON.parse(m[0]) : null;
     return j && typeof j.agree === 'boolean' ? j : { agree:false, reason:'判定できず' };
   }catch(e){ if(e.name==='AbortError') throw e; return { agree:false, reason:'判定失敗' }; }
 }
-async function runUnit(s, r, i, messages, M){
-  const spec = s.specs[i];
-  s.rounds[r][i] = { text:'', model:spec.model, streaming:true };
-  renderTriad();
+async function runUnit(s, t, r, i, messages, M){
+  const T = s.turns[t], spec = T.specs[i];
+  T.rounds[r][i] = { text:'', model:spec.model, streaming:true };
+  if(isViewing(s,t)) renderTriad();
   for(let attempt=0; attempt<2; attempt++){
     try{
-      const res = await chat(spec, messages, t=>{
-        s.rounds[r][i].text = t;
-        if(activeTab===UNITS[i].key) renderBody();
-      }, abortCtl.signal, M.tokens, M.effort, s.web);
+      const res = await chat(spec, messages, txt=>{
+        T.rounds[r][i].text = txt;
+        if(isViewing(s,t) && activeTab===UNITS[i].key) renderBody();
+      }, abortCtl.signal, M.tokens, M.effort, T.web);
       if(!res.text.trim()) throw new Error('空の応答');
-      s.rounds[r][i] = { text:res.text, model:res.usedSpec.model, ...parseOut(res.text) };
-      s.models[i] = res.usedSpec.model;
-      addCost(s, res.usage, res.usedSpec); renderTriad(); if(activeTab===UNITS[i].key) renderBody();
+      T.rounds[r][i] = { text:res.text, model:res.usedSpec.model, ...parseOut(res.text) };
+      T.models[i] = res.usedSpec.model;
+      addCost(T, res.usage, res.usedSpec);
+      if(isViewing(s,t)){ renderTriad(); if(activeTab===UNITS[i].key) renderBody(); }
       return;
     }catch(e){
       if(e.name==='AbortError') throw e;
-      if(e.status===402){ s.rounds[r][i] = null; setErr(s, r, i, 'クレジット不足: OpenRouterでチャージしてください'); toast('OpenRouterのクレジットが不足しています'); renderTriad(); return; }
-      if(attempt===1){ s.rounds[r][i] = null; setErr(s, r, i, e.message); toast(`${UNITS[i].name} 応答失敗: ${e.message.slice(0,80)}`); renderTriad(); }
+      if(e.status===402){ T.rounds[r][i] = null; T.errors[r+'-'+i] = 'クレジット不足: OpenRouterでチャージしてください'; toast('OpenRouterのクレジットが不足しています'); if(isViewing(s,t)) renderTriad(); return; }
+      if(attempt===1){ T.rounds[r][i] = null; T.errors[r+'-'+i] = e.message; toast(`${UNITS[i].name} 応答失敗: ${e.message.slice(0,80)}`); if(isViewing(s,t)) renderTriad(); }
     }
   }
 }
-function setErr(s, r, i, msg){ s.errors = s.errors || {}; s.errors[r+'-'+i] = msg; }
-function addCost(s, u, spec){
-  if(spec?.provider==='google'){ s.freeCalls = (s.freeCalls||0) + 1; }
-  else if(u && typeof u.cost==='number') s.cost += u.cost;
+function addCost(T, u, spec){
+  if(spec?.provider==='google'){ T.freeCalls = (T.freeCalls||0) + 1; }
+  else if(u && typeof u.cost==='number') T.cost += u.cost;
   renderCost();
 }
 function stopRun(){ abortCtl && abortCtl.abort(); }
 function setPhase(t){ $('r-phase').textContent = t; }
 
-/* ========== 描画 ========== */
+/* =====================================================================
+   費用見積もり
+   ===================================================================== */
+function estimate(isFollow){
+  if(!orModels.length) return null;
+  const mode = cfg.mode, M = MODES[mode];
+  const specs = UNITS.map((u,i)=>unitSpec(i, mode, cfg.web, cfg.priv));
+  const qText = (isFollow ? $('fq') : $('q')).value;
+  const textTok = pendingTextTokens(), imgTok = pending.filter(d=>d.kind==='image').length*1600;
+  const docTok = (sumOn && textTok) ? 6000 : textTok;
+  let histTok = 0;
+  if(isFollow && current){
+    histTok = current.turns.reduce((a,T)=>{
+      const dt = T.summary ? estTokens(T.summary) : (T.docs||[]).reduce((x,d)=>x+d.tokens,0);
+      return a + dt + estTokens(T.q) + 2500;
+    },0);
+  }
+  const inTok = 1200 + estTokens(qText) + docTok + imgTok + histTok;
+  const outTok = M.tokens*0.6;
+  let lo = 0, hi = 0, unknown = false;
+  specs.forEach(sp=>{
+    const p = priceOf(sp); if(!p){ unknown = true; return; }
+    const one = inTok*p.pin + outTok*p.pout;
+    lo += one;
+    hi += one + (inTok + 5000)*p.pin + outTok*p.pout;   // 討論あり（キャッシュ割引なしで計算）
+  });
+  const p0 = priceOf(intSpec(mode, specs)) || { pin:0, pout:0 };
+  const syn = 7000*p0.pin + 1500*p0.pout; lo += syn; hi += syn;
+  if(sumOn && textTok){ const pc = priceOf(cheapSpec(cfg.priv)) || {pin:0,pout:0}; const sc = textTok*pc.pin + 5000*pc.pout; lo += sc; hi += sc; }
+  return { lo, hi, inTok, unknown };
+}
+function renderEst(){
+  document.querySelectorAll('.ctrl').forEach(el=>{
+    const isFollow = el.dataset.slot==='follow';
+    const e = estimate(isFollow);
+    const box = el.querySelector('.est'); if(!box) return;
+    if(!e){ box.textContent = ''; return; }
+    box.textContent = `予想費用: 約${yen(e.lo)}〜${yen(e.hi)}円（入力 約${e.inTok.toLocaleString()}トークン）${e.unknown?'・一部モデルの料金不明':''}`;
+  });
+}
+
+/* =====================================================================
+   描画
+   ===================================================================== */
 function go(v){
   $('v-home').classList.toggle('hidden', v!=='home');
   $('v-result').classList.toggle('hidden', v!=='result');
-  if(v==='home'){ renderHome(); }
+  if(v==='home'){ renderCtrl(); renderHistory(); }
   window.scrollTo(0,0);
 }
-function setMode(m){ cfg.mode = m; save('magi_cfg2', cfg); renderHome(); }
-function setWeb(b){ cfg.web = b; save('magi_cfg2', cfg); renderHome(); }
-function renderHome(){
-  document.querySelectorAll('#modeSeg div').forEach(d=>{ d.className = d.dataset.m===cfg.mode ? ('on '+d.dataset.m) : ''; });
-  $('webChk').checked = !!cfg.web;
-  const specs = UNITS.map((u,i)=>unitSpec(i, cfg.mode, cfg.web));
-  const names = specs.map((sp,i)=> (sp.provider==='google' ? '🆓' : '') + sp.model.split('/').pop()).join(' / ');
+function setMode(m){ cfg.mode = m; save('magi_cfg3', cfg); renderCtrl(); }
+function setOpt(k, b){ cfg[k] = b; save('magi_cfg3', cfg); renderCtrl(); }
+function setSum(b){ sumOn = b; sumTouched = true; renderCtrl(); }
+function renderCtrl(){
+  const specs = UNITS.map((u,i)=>unitSpec(i, cfg.mode, cfg.web, cfg.priv));
+  const names = specs.map(sp=> (sp.provider==='google' ? '🆓' : '') + sp.model.split('/').pop()).join(' / ');
   const dbt = { auto:'割れた時だけ討論', always:'常に討論', never:'討論なし' }[cfg.debate];
-  $('cfgSummary').textContent = `${names}・${dbt}・${MODES[cfg.mode].hint}${cfg.web?'（Web検索で増える）':''}`;
-  renderHistory();
+  const textTok = pendingTextTokens();
+  const freeWarn = specs.some(sp=>sp.provider==='google') && pending.length;
+  const html = `
+    <div class="opts">
+      <div class="seg" style="flex:1;min-width:170px">
+        <div class="${cfg.mode==='eco'?'on eco':''}" onclick="setMode('eco')">節約</div>
+        <div class="${cfg.mode==='max'?'on max':''}" onclick="setMode('max')">本気</div>
+      </div>
+      <label class="chk"><input type="checkbox" ${cfg.web?'checked':''} onchange="setOpt('web',this.checked)">Web検索</label>
+      <label class="chk"><input type="checkbox" ${cfg.priv?'checked':''} onchange="setOpt('priv',this.checked)">🔒機密</label>
+    </div>
+    <div class="attach-row">
+      <button class="btn small" onclick="$('fileIn').click()">📎 ファイル添付</button>
+      ${pending.map(d=>`<span class="chip">${d.kind==='image'?'🖼':'📄'} <span class="nm">${esc(d.name)}</span> <span class="muted">${d.tokens.toLocaleString()}</span><span class="x" onclick="removePending('${d.id}')">✕</span></span>`).join('')}
+    </div>
+    ${textTok ? `<label class="chk" style="margin-top:8px"><input type="checkbox" ${sumOn?'checked':''} onchange="setSum(this.checked)">要約してから審議（長い資料が安くなる・細部は落ちる）</label>` : ''}
+    ${freeWarn ? `<div class="warn">CASPERがGoogle無料枠で動きます。添付内容がGoogleの改善に使われるので、個人的・機密な資料なら「🔒機密」をON</div>` : ''}
+    <div class="muted" style="margin-top:8px">${esc(names)}・${dbt}</div>
+    <div class="est"></div>`;
+  document.querySelectorAll('.ctrl').forEach(el=>{ el.innerHTML = html; });
+  renderEst();
 }
 function render(){
   if(!current) return;
-  const s = current;
-  $('r-meta').textContent = `質問 ・${MODES[s.mode]?.label||''}モード${s.web?'・Web検索':''}`;
-  $('r-q').textContent = s.q;
+  const s = current, T = s.turns[viewTurn];
+  $('r-turns').innerHTML = s.turns.length > 1 ? s.turns.map((x,k)=>`<div class="turn-tab ${k===viewTurn?'on':''}" onclick="setTurn(${k})">Q${k+1}${x.tally?' '+esc(x.tally.big):''}</div>`).join('') : '';
+  $('r-meta').textContent = `${s.turns.length>1?`Q${viewTurn+1} ・`:''}${MODES[T.mode]?.label||''}モード${T.web?'・Web検索':''}${T.priv?'・🔒機密':''}`;
+  $('r-q').textContent = T.q;
+  $('r-docs').innerHTML = (T.docs||[]).map(d=>`<span class="chip">${d.kind==='image'?'🖼':'📄'} <span class="nm">${esc(d.name)}</span></span>`).join('') + (T.summary ? `<span class="chip">📝 要約して審議</span>` : '');
+  if(T.status!=='running') setPhase(T.status==='done' ? phaseDone(T) : (T.status==='aborted' ? '中断' : 'エラー'));
   renderBanner(); renderTriad(); renderTabs(); renderBody(); renderCost(); renderRate();
+  const last = viewTurn === s.turns.length-1;
+  $('r-follow').classList.toggle('hidden', !(last && T.status!=='running'));
+  if(last && T.status!=='running') renderCtrl();
 }
+function setTurn(k){ viewTurn = k; activeTab = 'sum'; render(); }
 function renderBanner(){
-  const b = $('r-banner'), t = current.tally;
+  const b = $('r-banner'), t = current.turns[viewTurn].tally;
   if(!t){ b.className='banner split'; b.innerHTML='<div class="big">審議中</div><div class="sub">3ユニットが独立して審議しています</div>'; return; }
   b.className = 'banner ' + t.cls;
   b.innerHTML = `<div class="big">${esc(t.big)}</div><div class="sub">${esc(t.sub)}</div>`;
 }
-function latestFor(i){
-  const s = current;
-  for(let r = s.rounds.length-1; r >= 0; r--){
-    const x = s.rounds[r]?.[i];
+function latestFor(T, i){
+  for(let r = T.rounds.length-1; r >= 0; r--){
+    const x = T.rounds[r]?.[i];
     if(x) return { x, r };
-    if(s.errors?.[r+'-'+i]) return { x:null, r, err:s.errors[r+'-'+i] };
+    if(T.errors?.[r+'-'+i]) return { x:null, r, err:T.errors[r+'-'+i] };
   }
   return null;
 }
 function renderTriad(){
   if(!current) return;
+  const T = current.turns[viewTurn];
   $('r-triad').innerHTML = UNITS.map((u,i)=>{
-    const L = latestFor(i);
+    const L = latestFor(T, i);
     let st='待機', vd='', cls='', chg='';
     if(L){
       if(!L.x){ st='応答なし'; cls='err'; }
       else if(L.x.streaming){ st = (L.r===0?'独立審議中…':'再判定中…'); cls='thinking'; }
-      else {
-        st = (L.r===0?'初回':'再判定') + (L.x.conf!=null ? ` / 確信${L.x.conf}` : '');
-        vd = L.x.verdict||''; cls = 'v-'+vd;
-        if(L.r===1 && L.x.changed) chg = '意見変更';
-      }
+      else { st = (L.r===0?'初回':'再判定') + (L.x.conf!=null ? ` / 確信${L.x.conf}` : ''); vd = L.x.verdict||''; cls = 'v-'+vd; if(L.r===1 && L.x.changed) chg = '意見変更'; }
     }
-    return `<div class="unit ${u.key} ${cls}" onclick="setTab('${u.key}')">
-      ${chg?`<div class="chg">${chg}</div>`:''}
-      <div class="nm">${u.name}</div>
-      <div class="md">${esc((current.models[i]||'').split('/').pop())}</div>
-      <div class="vd v-${esc(vd)}">${esc(vd)}</div>
-      <div class="st">${esc(st)}</div></div>`;
+    return `<div class="unit ${u.key} ${cls}" onclick="setTab('${u.key}')">${chg?`<div class="chg">${chg}</div>`:''}
+      <div class="nm">${u.name}</div><div class="md">${esc((T.models[i]||'').split('/').pop())}</div>
+      <div class="vd v-${esc(vd)}">${esc(vd)}</div><div class="st">${esc(st)}</div></div>`;
   }).join('');
 }
 function renderTabs(){
@@ -685,88 +973,123 @@ function renderTabs(){
   $('r-tabs').innerHTML = tabs.map(([k,n])=>`<div class="tab ${activeTab===k?'on':''}" onclick="setTab('${k}')">${n}</div>`).join('');
 }
 function setTab(k){ activeTab = k; renderTabs(); renderBody(); }
+
+/* ---------- 色分けレンダリング ---------- */
+const SEC_RULES = [
+  [/総合結論/, 'sec-final'], [/^結論/, 'sec-concl'], [/結論/, 'sec-concl'], [/根拠/, 'sec-basis'],
+  [/不明|反証|懸念|前提/, 'sec-risk'], [/他機|指摘/, 'sec-cross'], [/合意/, 'sec-agree'],
+  [/各ユニット|立場/, 'sec-units'], [/少数|残る論点/, 'sec-minor'],
+];
+function richText(text, color){
+  let t = (text||'').replace(/\r/g,'');
+  const meta = parseOut(t), fin = parseFinal(t);
+  t = t.replace(/^\s*最終判定\s*[:：].*$/m, '')
+       .replace(/^\s*\**\s*(判定|確信度|変更理由|変更)\s*[:：].*$/gm, '')
+       .replace(/\n\s*-{3,}\s*(\n\s*)*$/,'').trim();
+  const parts = t.split(/^#{1,3}\s+(.+)$/m);
+  let html = parts[0].trim() ? `<div class="md-body">${md(parts[0])}</div>` : '';
+  for(let k=1; k<parts.length; k+=2){
+    const hd = parts[k].replace(/[*#]/g,'').trim(), body = (parts[k+1]||'').trim();
+    const cls = (SEC_RULES.find(([re])=>re.test(hd))||[null,'sec-plain'])[1];
+    html += `<div class="sec ${cls}"><div class="hd">${esc(hd)}</div><div class="md-body bodytxt">${md(body)}</div></div>`;
+  }
+  let metaHtml = '';
+  if(fin) metaHtml += `<span class="badge f-${fin}">最終判定：${fin}</span>`;
+  const hasVerdict = /判定\s*[:：]/.test(text||'') && !fin;
+  if(hasVerdict) metaHtml += `<span class="badge v-${meta.verdict}">${meta.verdict}</span>`;
+  if(meta.conf!=null) metaHtml += `<span class="meter">確信度 ${meta.conf}<span class="bar"><i style="width:${meta.conf}%"></i></span></span>`;
+  if(meta.changed) metaHtml += `<span class="badge chg">意見変更</span>`;
+  const reason = meta.changed && meta.reason && meta.reason!=='なし' ? `<div class="chgreason">変更理由：${esc(meta.reason)}</div>` : '';
+  const top = fin ? `<div class="metarow" style="margin:0 0 6px">${metaHtml}</div>` : '';
+  const bottom = !fin && metaHtml ? `<div class="metarow">${metaHtml}</div>${reason}` : '';
+  return `<div style="--uc:${color||'var(--accent)'}">${top}${html}${bottom}</div>`;
+}
 function renderBody(){
-  const el = $('r-body'), s = current;
+  const el = $('r-body'), T = current.turns[viewTurn];
   if(activeTab==='sum'){
     let pre = '';
-    if(s.agree) pre = `<div class="muted" style="margin-bottom:8px">初回一致チェック: ${s.agree.agree?'一致':'不一致'}（${esc(s.agree.reason||'')}）${s.debated?' → 討論を実施':' → 討論を省略'}</div>`;
-    if(!s.synth){ el.innerHTML = pre + '<div class="card muted">審議が終わると、ここに総合結論が出ます。各ユニットのタブで途中経過をリアルタイムに見られます。</div>'; return; }
-    el.innerHTML = pre + `<div class="card"><div class="muted">統合役: ${esc(s.synth.model)}${s.synth.streaming?' ・生成中…':''}</div><div class="md-body">${md(s.synth.text)}</div></div>`;
+    if(T.summary) pre += `<details class="round"><summary><span>📝 資料の要約（${esc(T.sumModel||'')}）</span><span class="muted">タップで表示</span></summary><div class="inner md-body">${md(T.summary)}</div></details>`;
+    if(T.agree) pre += `<div class="muted" style="margin-bottom:8px">初回一致チェック: ${T.agree.agree?'一致':'不一致'}（${esc(T.agree.reason||'')}）${T.debated?' → 討論を実施':' → 討論を省略'}</div>`;
+    if(!T.synth){ el.innerHTML = pre + '<div class="card muted">審議が終わると、ここに総合結論が出ます。各ユニットのタブで途中経過をリアルタイムに見られます。</div>'; return; }
+    el.innerHTML = pre + `<div class="card"><div class="muted">統合役: ${esc(T.synth.model)}${T.synth.streaming?' ・生成中…':''}</div>${richText(T.synth.text)}</div>`;
     return;
   }
   const i = UNITS.findIndex(u=>u.key===activeTab), u = UNITS[i];
-  const html = s.rounds.map((round, r)=>{
-    const x = round?.[i]; const err = s.errors?.[r+'-'+i];
+  const html = T.rounds.map((round, r)=>{
+    const x = round?.[i]; const err = T.errors?.[r+'-'+i];
     let title = r===0 ? '01 独立審議（初回・確定）' : '04-05 相互批判・再判定';
-    if(r===1 && s.anon?.[i]) title += `<br><span class="muted">機A=${UNITS[s.anon[i].A].name} / 機B=${UNITS[s.anon[i].B].name}</span>`;
+    if(r===1 && T.anon?.[i]) title += `<br><span class="muted">機A=${UNITS[T.anon[i].A].name} / 機B=${UNITS[T.anon[i].B].name}</span>`;
     const meta = x && !x.streaming ? `${x.verdict||''}${x.conf!=null?' / 確信'+x.conf:''}${r===1&&x.changed?' / 意見変更':''}` : (x ? '生成中…' : (err ? '応答なし' : '待機'));
-    const open = r===s.rounds.length-1 ? 'open' : '';
-    const content = x ? md(x.text) : `<p class="muted">${esc(err||'まだ回答がありません')}</p>`;
-    return `<details class="round" ${open}><summary><span>${title}</span><span class="muted" style="white-space:nowrap">${esc(meta)}</span></summary><div class="inner md-body">${content}</div></details>`;
+    const open = r===T.rounds.length-1 ? 'open' : '';
+    const content = x ? richText(x.text, u.color) : `<p class="muted">${esc(err||'まだ回答がありません')}</p>`;
+    return `<details class="round" ${open}><summary><span>${title}</span><span class="muted" style="white-space:nowrap">${esc(meta)}</span></summary><div class="inner">${content}</div></details>`;
   }).join('');
-  el.innerHTML = `<div class="muted" style="margin-bottom:8px"><b style="color:${u.color}">${u.name}</b>（${u.jp}）・モデル: ${esc(s.models[i])}</div>` + (html || '<div class="card muted">まだ回答がありません</div>');
+  el.innerHTML = `<div class="muted" style="margin-bottom:8px"><b style="color:${u.color}">${u.name}</b>（${u.jp}）・モデル: ${esc(T.models[i])}</div>` + (html || '<div class="card muted">まだ回答がありません</div>');
 }
 function renderCost(){
   if(!current) return;
-  const s = current; const parts = [];
-  if(s.cost) parts.push(`API費用: $${s.cost.toFixed(4)}（約${(s.cost*155).toFixed(s.cost*155<10?1:0)}円）`);
-  if(s.freeCalls) parts.push(`Google無料枠 ${s.freeCalls}回`);
+  const s = current, T = s.turns[viewTurn]; const parts = [];
+  if(T.cost) parts.push(`このターン: $${T.cost.toFixed(4)}（約${yen(T.cost)}円）`);
+  if(T.freeCalls) parts.push(`Google無料枠 ${T.freeCalls}回`);
+  const total = s.turns.reduce((a,x)=>a+(x.cost||0),0);
+  if(s.turns.length>1 && total) parts.push(`スレッド合計 約${yen(total)}円`);
   $('r-cost').textContent = parts.join(' ・');
 }
 function renderRate(){
-  const s = current;
-  $('r-rate').classList.toggle('hidden', s.status!=='done');
-  document.querySelectorAll('#r-rate .btn').forEach(b=> b.classList.toggle('on', b.dataset.r===s.rating));
+  const T = current.turns[viewTurn];
+  $('r-rate').classList.toggle('hidden', T.status!=='done');
+  document.querySelectorAll('#r-rate .btn').forEach(b=> b.classList.toggle('on', b.dataset.r===T.rating));
 }
-function rate(r){ current.rating = current.rating===r ? null : r; saveSession(current); renderRate(); toast('記録しました'); }
+async function rate(r){ const T = current.turns[viewTurn]; T.rating = T.rating===r ? null : r; await saveSession(current); renderRate(); toast('記録しました'); }
 
-/* ========== 履歴・精度記録 ========== */
-function sessions(){ return load('magi_sessions2', []); }
-function saveSession(s){
-  const list = sessions().filter(x=>x.id!==s.id);
-  list.unshift(s);
-  save('magi_sessions2', list.slice(0, 80));
-}
+/* =====================================================================
+   履歴・精度記録
+   ===================================================================== */
 function renderHistory(){
-  const list = sessions(); const el = $('history');
-  // 精度の集計
-  const rated = list.filter(s=>s.rating);
-  const acc = arr => { const g = arr.filter(s=>s.rating==='good').length; return arr.length ? Math.round(g/arr.length*100)+'%' : '-'; };
-  const costSum = list.reduce((a,s)=>a+(s.cost||0),0);
+  const list = sessionCache; const el = $('history');
+  const turns = list.flatMap(s=>s.turns||[]);
+  const rated = turns.filter(T=>T.rating);
+  const acc = arr => { const g = arr.filter(T=>T.rating==='good').length; return arr.length ? Math.round(g/arr.length*100)+'%' : '-'; };
+  const costSum = turns.reduce((a,T)=>a+(T.cost||0),0);
   $('stats').textContent = rated.length
-    ? `評価済み${rated.length}件・正解率 ${acc(rated)}（節約 ${acc(rated.filter(s=>s.mode==='eco'))} / 本気 ${acc(rated.filter(s=>s.mode==='max'))}）・累計費用 約${Math.round(costSum*155)}円`
-    : (list.length ? `累計費用 約${Math.round(costSum*155)}円` : '');
+    ? `評価済み${rated.length}件・正解率 ${acc(rated)}（節約 ${acc(rated.filter(T=>T.mode==='eco'))} / 本気 ${acc(rated.filter(T=>T.mode==='max'))}）・累計費用 約${yen(costSum)}円`
+    : (list.length ? `累計費用 約${yen(costSum)}円` : '');
   if(!list.length){ el.innerHTML = '<div class="hist-item muted">まだ審議はありません</div>'; return; }
-  const rmark = { good:'✓', meh:'△', bad:'✗' };
   el.innerHTML = list.map(s=>{
-    const t = s.tally || { cls:'split', big: s.status==='aborted'?'中断':'—' };
-    const d = new Date(s.created); const ds = `${d.getMonth()+1}/${d.getDate()}`;
+    const L = s.turns[s.turns.length-1] || {};
+    const t = L.tally || { cls:'split', big: L.status==='aborted'?'中断':'—' };
+    const d = new Date(s.updated||s.created); const ds = `${d.getMonth()+1}/${d.getDate()}`;
     return `<div class="hist-item" onclick="openSession('${s.id}')">
       <span class="pill ${t.cls}">${esc(t.big)}</span>
-      ${s.mode==='max'?'<span class="pill max">本気</span>':''}
-      <span class="q">${esc(s.q)}</span>
-      <span class="muted">${s.rating?rmark[s.rating]+' ':''}${ds}</span>
+      ${s.turns.some(T=>T.mode==='max')?'<span class="pill max">本気</span>':''}
+      ${s.turns.length>1?`<span class="pill">×${s.turns.length}</span>`:''}
+      <span class="q">${esc(s.title||'')}</span>
+      <span class="muted">${ds}</span>
       <span onclick="event.stopPropagation();delSession('${s.id}')" style="padding:0 4px;color:var(--muted)">✕</span></div>`;
   }).join('');
 }
 function openSession(id){
-  const s = sessions().find(x=>x.id===id); if(!s) return;
-  current = s; activeTab='sum'; go('result');
-  setPhase(s.status==='done' ? (s.debated?'審議完了（討論あり）':'審議完了') : (s.status==='aborted'?'中断':'エラー'));
-  render();
+  const s = sessionCache.find(x=>x.id===id); if(!s) return;
+  if(abortCtl && current && current.id!==id) toast('実行中の審議はバックグラウンドで続きます');
+  current = s; viewTurn = s.turns.length-1; activeTab='sum'; pending = []; go('result'); render();
 }
-function delSession(id){ save('magi_sessions2', sessions().filter(x=>x.id!==id)); renderHistory(); }
+async function delSession(id){
+  if(current?.id===id && abortCtl) return toast('実行中の審議は削除できません');
+  await DB.del(id); sessionCache = sessionCache.filter(x=>x.id!==id); renderHistory();
+}
 async function copyAll(){
   const s = current; if(!s) return;
-  let out = `# 審議案件\n${s.q}\n\n# 判定: ${s.tally?.big||'-'}（${s.tally?.sub||''}）\n\n# 総合結論\n${s.synth?.text||''}\n`;
-  UNITS.forEach((u,i)=>{
-    out += `\n\n# ${u.name}（${s.models[i]}）\n`;
-    s.rounds.forEach((r,k)=>{ out += `\n## ${k===0?'独立審議':'相互批判・再判定'}\n${r?.[i]?.text||'（応答なし）'}\n`; });
+  let out = '';
+  s.turns.forEach((T,k)=>{
+    out += `${k?'\n\n':''}# Q${k+1}\n${T.q}\n${(T.docs||[]).length?`添付: ${T.docs.map(d=>d.name).join('、')}\n`:''}\n## 判定: ${T.tally?.big||'-'}（${T.tally?.sub||''}）\n\n## 総合結論\n${T.synth?.text||''}\n`;
+    UNITS.forEach((u,i)=>{ out += `\n### ${u.name}（${T.models[i]}）\n`; T.rounds.forEach((r,j)=>{ out += `\n#### ${j===0?'独立審議':'相互批判・再判定'}\n${r?.[i]?.text||'（応答なし）'}\n`; }); });
   });
   try{ await navigator.clipboard.writeText(out); toast('コピーしました'); }catch(e){ toast('コピーできませんでした'); }
 }
 
-/* ========== 設定 ========== */
+/* =====================================================================
+   設定
+   ===================================================================== */
 function modelInputs(mode){
   return UNITS.map((u,i)=>`
     <div class="unit-set ${u.key}">
@@ -778,7 +1101,7 @@ function modelInputs(mode){
 async function openSettings(){
   $('settings').classList.remove('hidden');
   $('s-key').value = cfg.key; $('s-gkey').value = cfg.gkey;
-  $('s-debate').value = cfg.debate; $('s-int').value = cfg.intModel;
+  $('s-debate').value = cfg.debate; $('s-int').value = cfg.intModel; $('s-sumth').value = String(cfg.sumTh);
   $('s-eco').innerHTML = modelInputs('eco');
   $('s-max').innerHTML = modelInputs('max');
   $('s-personas').innerHTML = UNITS.map((u,i)=>`<label>${u.name}</label><textarea id="s-p-${i}" style="min-height:80px;font-size:14px">${esc(cfg.personas[i])}</textarea>`).join('');
@@ -790,10 +1113,11 @@ function updResolved(){
     UNITS.forEach((u,i)=>{
       const el = $(`s-${mode}-res-${i}`); if(!el) return;
       const v = $(`s-${mode}-${i}`).value.trim() || 'auto';
-      const saved = cfg.models[mode][i]; cfg.models[mode][i] = v;     // 一時的に反映して解決
-      const sp = unitSpec(i, mode, false);
+      const saved = cfg.models[mode][i]; cfg.models[mode][i] = v;
+      const sp = unitSpec(i, mode, false, false);
       cfg.models[mode][i] = saved;
       let txt = '→ ' + (sp.provider==='google' ? '🆓 Google直接: ' : 'OpenRouter: ') + sp.model;
+      const p = priceOf(sp); if(p && sp.provider==='or') txt += `（入力$${(p.pin*1e6).toFixed(2)}/出力$${(p.pout*1e6).toFixed(2)} per 100万）`;
       let bad = false;
       if(v!=='auto' && v.includes('/') && orModels.length && !orModels.find(m=>m.id===v)){ txt = '⚠ OpenRouterに見つかりません'; bad = true; }
       if(v==='auto' && !orModels.length) txt = '→ 取得中…';
@@ -806,18 +1130,24 @@ function saveSettings(){
   cfg.key = $('s-key').value.trim();
   cfg.gkey = $('s-gkey').value.trim();
   cfg.debate = $('s-debate').value;
+  cfg.sumTh = +$('s-sumth').value;
   cfg.intModel = $('s-int').value.trim() || 'auto';
   ['eco','max'].forEach(mode=> UNITS.forEach((u,i)=>{ cfg.models[mode][i] = $(`s-${mode}-${i}`).value.trim() || 'auto'; }));
   cfg.personas = UNITS.map((u,i)=> $(`s-p-${i}`).value.trim() || u.persona);
-  if(gkeyChanged){ gModels = []; fetchG().then(renderHome); }
-  save('magi_cfg2', cfg); closeSettings(); renderHome(); toast('保存しました');
+  if(gkeyChanged){ gModels = []; fetchG().then(renderCtrl); }
+  save('magi_cfg3', cfg); closeSettings(); renderCtrl(); toast('保存しました');
 }
 function resetPersonas(){ UNITS.forEach((u,i)=>{ $(`s-p-${i}`).value = u.persona; }); }
 function closeSettings(){ $('settings').classList.add('hidden'); }
 
-/* ========== 起動 ========== */
-go('home');
-Promise.all([fetchOR(), fetchG()]).then(renderHome);
+/* =====================================================================
+   起動
+   ===================================================================== */
+(async()=>{
+  go('home');
+  await loadSessions(); renderHistory();
+  await Promise.all([fetchOR(), fetchG()]); renderCtrl();
+})();
 if('serviceWorker' in navigator){ navigator.serviceWorker.register('sw.js').catch(()=>{}); }
 </script>
 </body>
