@@ -1,5 +1,5 @@
 // アプリ本体だけキャッシュ（API通信はキャッシュしない）
-const CACHE = 'magi-v13';
+const CACHE = 'magi-v14';
 const SHELL = ['./', './index.html', './manifest.json', './icon-192.png', './icon-512.png'];
 
 self.addEventListener('install', e => {
