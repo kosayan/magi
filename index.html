@@ -281,7 +281,7 @@ table.score td.hi{color:var(--ok);font-weight:800} table.score td.split{color:va
 /* =====================================================================
    定義
    ===================================================================== */
-const APP_VERSION = 'v4.7';
+const APP_VERSION = 'v4.8';
 const NEUTRAL = (n, name) => `あなたは合議制AI「MAGI」の第${n}ユニット ${name}。他の2機と対等な、独立した判断者である。特定の役割や立場は持たず、自分の知識と推論で最も妥当と考える答えを出す。事実と推測をはっきり区別し、不確かな点は不確かと明言する。`;
 const UNITS = [
   { key:'m', name:'MELCHIOR-1', jp:'メルキオール', vendor:'anthropic', color:'#4fc3f7', persona: NEUTRAL(1,'MELCHIOR') },
@@ -397,11 +397,11 @@ const PRESETS = {
 各案には「生物学的な根拠（どの淘汰圧で、どんな段階を経て進化したか）」と「映像としての見どころ（形・動き・色・スケール感）」も書く。`,
     cross:`他機の案を否定しない。弱い点は「この案が成立するために必要な条件」として指摘し、補強案を出す。より大胆にできる余地があれば提案する。`,
     converge:`映像スコアが7未満の案は最終候補から除外する。最終候補のうち1枠は「最も大胆で、かつ因果の筋が通る案」に充て、その案には【大胆枠】と付ける。`,
-    axisDesc:'「生物学＝生物学的に筋が通るか」「映像＝映像映えするか」' },
+    axisDesc:'「生物学＝生物学的に筋が通るか」「映像＝見た目の奇抜さではなく、理屈を知ったあとに見返して、ゾッとする・納得するか」', totalMin:true, needCausal:true },
 };
 
 const DEFAULT_CFG = {
-  v:4, key:'', gkey:'', mode:'eco', web:false, priv:false, debate:'auto', intModel:'auto', sumTh:30000, chainRounds:3, chainPreset:'none',
+  v:4, key:'', gkey:'', mode:'eco', web:false, priv:false, debate:'auto', intModel:'auto', sumTh:30000, chainRounds:3, chainPreset:'none', tl:false, tlUnit:'years', tlYearsText:'10万,100万,1000万', tlGensText:'4000,4万,40万', tlGenTime:25, tlAuto:false,
   models:{ eco:['auto','auto','auto'], max:['auto','auto','auto'] },
   personas: UNITS.map(u=>u.persona),
 };
@@ -1195,7 +1195,11 @@ async function startRun(isFollow){
       checkAbort();
     }
     // 🔁 連続議論モード
-    if(T.type==='chain'){ await runChain(s, t, M, priv, intSpec(mode, specs)); T.status = 'done'; setPhase(phaseDone(T)); return; }
+    if(T.type==='chain'){
+      if(cfg.tl){ await runTimeline(s, t, M, priv, intSpec(mode, specs)); T.status = T.timeline.waiting ? 'waiting' : 'done'; }
+      else { await runChain(s, t, M, priv, intSpec(mode, specs)); T.status = 'done'; }
+      setPhase(phaseDone(T)); return;
+    }
     // 01 独立回答
     setPhase(`01 / ${TYPES[T.type].label}：独立回答中…`);
     T.rounds[0] = [null,null,null];
@@ -1239,6 +1243,7 @@ async function startRun(isFollow){
    🔁 連続議論モード
    ===================================================================== */
 function chainTitle(T, k){
+  if(T.roundTitles?.[k]) return T.roundTitles[k];
   if(k===0) return 'R0 前提の提案';
   if(k===1) return 'R1 各自の案';
   if(k===T.chainN && T.chainN>=3) return `R${k} 収束`;
@@ -1258,7 +1263,9 @@ function chainInstr(T, i, k){
   if(k===0) return `【仮定】\n${T.q}\n\nこれは連続議論モードです。3機が対等な立場で、複数ラウンドかけてこの仮定を掘り下げます。他のユニットの意見はまだ見えません。
 
 第0ラウンド：前提の決定
-この仮定を議論するための土台になる前提条件を3〜6項目提案してください。何が結果を左右するか、どんな制約があるかを具体的に。${P.r0}
+この仮定を議論するための土台になる前提条件を3〜6項目提案してください。何が結果を左右するか、どんな制約があるかを具体的に。${P.r0}${T.timeline ? `
+
+これは時系列モード：この世界設定のもとで「${T.timeline.erasPreview}」と時代を進めて変化を追う。前提は淘汰圧を強める方向で、「ここまで変わるには何が必要か」を逆算して成立条件も出す。対象生物の世代時間（1世代の平均年数）も「世代時間: N年」の形で提案する。` : ''}
 
 # 回答形式
 ## 前提の提案
@@ -1339,7 +1346,7 @@ function chainMsgs(T, i, r){
 }
 function msgsPremise(T){
   return [ { role:'system', content: CHAIR_SYS + '\n今は前提を確定させる段階。' },
-    { role:'user', content:`【仮定】\n${T.q}\n\n${threeAnswers(T,0)}\n\n3機の前提の提案を統合し、議論の土台になる前提を確定してください。共通する項目はまとめ、対立する項目は根拠の強い方を採るか、両立する形に整える。${presetOf(T).r0}\n\n# 出力形式\n## 確定した前提\n- 項目名: 内容\n（3〜7項目）\n\n## 統合の判断\n（どの提案をどう採用・統合したか2〜4行）` } ];
+    { role:'user', content:`【仮定】\n${T.q}\n\n${threeAnswers(T,0)}\n\n3機の前提の提案を統合し、議論の土台になる前提を確定してください。共通する項目はまとめ、対立する項目は根拠の強い方を採るか、両立する形に整える。${presetOf(T).r0}\n\n# 出力形式\n## 確定した前提\n- 項目名: 内容\n（3〜7項目）${T.timeline ? '\n- 世代時間: N年（対象生物の1世代の平均年数。必ずこの形で書く）\n- 成立条件: この世界で大きな変化が起きるために必要な条件' : ''}\n\n## 統合の判断\n（どの提案をどう採用・統合したか2〜4行）` } ];
 }
 function msgsChainFinal(T){
   const P = presetOf(T), sf = scoreFmt(T);
@@ -1376,7 +1383,7 @@ function msgsChainExtract(T){
   const units = UNITS.map((u,i)=>`### ${u.name}\n${(T.rounds[lastR]?.[i]?.text||'（なし）').slice(0,2500)}`).join('\n\n');
   return [ { role:'system', content:'あなたは議事録の整理係。議長のまとめと各機の最終発言から、指定のJSONだけを出力する。文章や前置きは書かない。' },
     { role:'user', content:`【仮定】\n${T.q}\n\n## 議長のまとめ\n${(T.synth?.text||'').slice(0,6000)}\n\n## 各機の最終ラウンドの発言\n${units}\n\n議長のまとめの「残った案」（最大3つ、同じ順）と「割れた論点」を、次のJSONで出力。【大胆枠】の案は bold を true にする。各項目は設計書として使えるよう具体的に。2軸評価がなければ scores は省略。
-{"ideas":[{"name":"案名","pressure":"この案に効いている淘汰圧・前提（1〜3文）","body":["体の特徴（3〜6個）"],"rationale":"根拠（2〜4文）","concerns":["懸念点・成立に必要な条件（1〜3個）"],"bold":false,"support":"どの機が推したか","scores":{"生物学":0,"映像":0}}],"splits":[{"issue":"論点","stances":{"MELCHIOR":"立場（20字以内）","BALTHASAR":"立場","CASPER":"立場"}}]}` } ];
+{"ideas":[{"name":"案名","pressure":"この案に効いている淘汰圧・前提（1〜3文）","body":["体の特徴（3〜6個）"],"rationale":"根拠（2〜4文）","causal":"この淘汰圧だからこの形になった（1文）","concerns":["懸念点・成立に必要な条件（1〜3個）"],"bold":false,"support":"どの機が推したか","scores":{"生物学":0,"映像":0}}],"splits":[{"issue":"論点","stances":{"MELCHIOR":"立場（20字以内）","BALTHASAR":"立場","CASPER":"立場"}}]}` } ];
 }
 function ideasFromMarkdown(text){
   const sec = sectionOf(text, /残った案/); const out = [];
@@ -1406,6 +1413,8 @@ async function buildChainResult(T, is, signal){
   }
   let ideas = (j && Array.isArray(j.ideas) && j.ideas.length) ? j.ideas : ideasFromMarkdown(T.synth?.text||'');
   ideas.forEach(x=>{ if(/大胆枠/.test(x.name||'')){ x.bold = true; x.name = x.name.replace(/【?大胆枠】?/g,'').trim(); } });
+  { const P0 = presetOf(T); ideas.forEach(x=>{ const b = +x.scores?.['生物学'], v = +x.scores?.['映像']; if(isFinite(b) && isFinite(v)) x.total = P0.totalMin ? Math.min(b,v) : (b+v)/2; });
+    if(P0.needCausal){ const okc = ideas.filter(x=> !('causal' in x) || String(x.causal||'').trim().length >= 6); if(okc.length && okc.length < ideas.length){ T.excluded = (T.excluded||[]).concat(ideas.filter(x=>!okc.includes(x)).map(x=>`${x.name}（因果を1文で言えない）`)); ideas = okc; } } }
   const mn = presetOf(T).minAxis;
   if(mn){
     const ok = ideas.filter(x=> x.scores?.[mn.name]==null || +x.scores[mn.name] >= mn.min);
@@ -1422,6 +1431,220 @@ async function makeDesignData(){
   catch(e){ toast('作成できませんでした: ' + e.message); }
   finally{ T.curRound = null; abortCtl = null; setRunning(false); await saveSession(s); render(); }
 }
+/* =====================================================================
+   ⏳ 時系列モード
+   ===================================================================== */
+function parseNumList(text){
+  return String(text||'').split(/[,、，\s]+/).map(x=>x.replace(/[年世代後約]/g,'').trim()).filter(Boolean).map(x=>{
+    let m = 1; if(/億/.test(x)){ m = 1e8; x = x.replace('億',''); } else if(/万/.test(x)){ m = 1e4; x = x.replace('万',''); }
+    const v = parseFloat(x.replace(/,/g,'')); return isFinite(v) ? Math.round(v*m) : null;
+  }).filter(v=>v>0).sort((a,b)=>a-b).filter((v,i,a)=>a.indexOf(v)===i).slice(0,8);
+}
+function fmtNum(n){ n = Math.round(n); if(n>=1e8) return (+(n/1e8).toFixed(2))+'億'; if(n>=1e4) return (+(n/1e4).toFixed(2))+'万'; return n.toLocaleString(); }
+function makeEras(unit, text, genTime){
+  return parseNumList(text).map(v=> unit==='gens' ? { gens:v, years:v*genTime } : { years:v, gens:Math.max(1, Math.round(v/genTime)) })
+    .map(e=>({ ...e, label: unit==='gens' ? `${fmtNum(e.gens)}世代後（約${fmtNum(e.years)}年）` : `${fmtNum(e.years)}年後（約${fmtNum(e.gens)}世代）` }));
+}
+function tlText(){ return cfg.tlUnit==='gens' ? cfg.tlGensText : cfg.tlYearsText; }
+function chosenOf(st){ return st && st.chosen!=null ? st.candidates[st.chosen] : null; }
+function lineageText(T, upto){
+  const L = T.timeline.steps.slice(0, upto).map(st=>{ const c = chosenOf(st); return c ? `- ${st.label}: **${c.name}** — ${c.causal||''}（${asList(c.body).slice(0,4).join('／')}）` : ''; }).filter(Boolean);
+  return L.length ? L.join('\n') : '（まだなし。現代人が出発点）';
+}
+function eraBase(T){ return `【仮定】\n${T.q}\n\n## 確定した世界設定\n${T.premise || '（なし）'}`; }
+function eraInfo(T, e){
+  const tl = T.timeline, era = tl.eras[e], prev = e>0 ? chosenOf(tl.steps[e-1]) : null;
+  const gap = e>0 ? era.years - tl.eras[e-1].years : era.years;
+  return `## これまでの系譜（各時代で確定した姿）\n${lineageText(T, e)}\n\n## 今回の時代\n${era.label}${prev ? `（前の時代の「${prev.name}」から約${fmtNum(gap)}年・約${fmtNum(gap/tl.genTime)}世代）` : `（現代から約${fmtNum(gap)}年）`}`;
+}
+function eraMsgs(T, i, e, kind){
+  const tl = T.timeline, P = presetOf(T), era = tl.eras[e], prev = e>0 ? chosenOf(tl.steps[e-1]) : null;
+  const late = era.years >= 1e7 ? '\n- この時代のスケールでは、種の分岐（複数の系統に分かれる）、天敵・寄生生物の出現も検討する。' : '';
+  const propose = `${eraInfo(T, e)}
+
+第${e+1}時代：${era.label}
+${prev ? `前の時代で確定した「${prev.name}」を祖先として引き継ぎ、` : '現代人を出発点として、'}この時代までに起きる変化を2〜3案出してください。
+${P.idea}${late}
+- 各案に「この淘汰圧だからこの形になった」を1文で書く（1文で言えない案は出さない）。
+- 映像の基準は見た目の奇抜さではなく「理屈を知ったあとに見返して、ゾッとする・納得するか」。
+
+# 回答形式
+## 案
+1. **案名** — 説明（2〜4文）
+   因果: 〜だから〜になった（1文）
+   ギョッとする点: 〜
+（2〜3案）
+
+---
+確信度: 0〜100の整数`;
+  const msgs = [ sysMsg(i), { role:'user', content:[ { type:'text', text: eraBase(T), cache_control:{ type:'ephemeral' } }, { type:'text', text: propose } ] } ];
+  if(kind==='cross'){
+    const st = tl.steps[e], anon = T.anon[i];
+    const others = Object.entries(anon).map(([lab,u])=>`### 機${lab}の案\n${T.rounds[st.a]?.[u]?.text || '（応答なし）'}`).join('\n\n');
+    msgs.push({ role:'assistant', content: T.rounds[st.a]?.[i]?.text || '（応答なし）' });
+    msgs.push({ role:'user', content:`第${e+1}時代の反論・修正
+他の2機の案を匿名で示します。
+
+${others}
+
+# 指示
+- ${P.cross || '他機の案の根拠の弱い点・矛盾・前提や系譜との食い違いを具体的に指摘する。'}
+- 「この淘汰圧だからこの形になった」が1文で言えない案は、その点を指摘する。
+- そのうえで自分の案を改訂する（2〜3案。他機の案の改良でもよい）。
+
+# 回答形式
+## 反論・指摘
+- 機A: 〜
+- 機B: 〜
+${P.axes.length ? `\n## 他機の案の評価\n（${P.axisDesc}）\n- 機A1 案名: ${scoreFmt(T)} — ひとこと\n（他機の全案）\n` : ''}
+## 改訂した案
+1. **案名** — 説明
+   因果: 〜だから〜になった（1文）
+（2〜3案）
+
+---
+確信度: 0〜100の整数
+変更: あり / なし
+変更理由: （なし）` });
+  }
+  return limitCacheMarks(clone(msgs));
+}
+function msgsEraPick(T, e){
+  const tl = T.timeline, st = tl.steps[e], P = presetOf(T);
+  const block = r => UNITS.map((u,i)=>`### ${u.name}\n${(T.rounds[r]?.[i]?.text||'（応答なし）').slice(0,3000)}`).join('\n\n');
+  return [ { role:'system', content: CHAIR_SYS + '\n今は時代ごとの候補を絞る段階。JSONのみを出力する。' },
+    { role:'user', content:`${eraBase(T)}\n\n${eraInfo(T, e)}\n\n## 3機の案\n${block(st.a)}\n\n## 反論・修正後\n${block(st.b)}
+
+この時代の候補を2〜3案に絞ってください（ユーザーが1つ選んで次の時代に進む）。
+- 「この淘汰圧だからこの形になった」を1文で言えない案は候補にしない。
+- 弱い点は否定せず「成立に必要な条件」として書く。${P.axes.length ? `\n- 各候補を${P.axisDesc}の2軸で10点満点で採点する。` : ''}${P.converge ? `\n- 候補のうち1つは「最も大胆で、かつ因果の筋が通る案」にして bold を true にする。映像が7未満の案は候補にしない。` : ''}${tl.eras[e].years >= 1e7 ? '\n- この時代は種の分岐、天敵・寄生生物の出現も考慮した候補を含める。' : ''}
+出力：{"note":"この時代の議論の要約（1〜2文）","candidates":[{"name":"案名","causal":"この淘汰圧だからこの形になった（1文）","pressure":"効いている淘汰圧（1〜2文）","body":["体の特徴（3〜6個）"],"rationale":"根拠（2〜3文）","concerns":["成立に必要な条件（1〜3個）"],"scores":{"生物学":0,"映像":0},"bold":false,"support":"どの機の案が元か"}]}` } ];
+}
+function msgsTimelineFinal(T){
+  const tl = T.timeline;
+  return [ { role:'system', content: CHAIR_SYS },
+    { role:'user', content:`${eraBase(T)}\n\n## 確定した系譜\n${lineageText(T, tl.steps.length)}\n\n${tl.eras.length}つの時代を経た進化の流れを、動画の構成にも使える形でまとめてください。
+
+# 出力形式
+## 結論（ひとことで）
+（最終形態をひとことで）
+
+## 系譜
+（時代ごとに「何が起き、なぜこの形になったか」を1〜2行）
+
+## 最終形態の姿
+（見た目・行動・暮らしを具体的に）
+
+## 見どころ（映像化のポイント）
+（理屈を知ったあとにゾッとする・納得するポイント）` } ];
+}
+function processCands(T, list){
+  const P = presetOf(T);
+  list = (Array.isArray(list) ? list : []).filter(x=>x && x.name);
+  list.forEach(x=>{
+    const b = +x.scores?.['生物学'], v = +x.scores?.['映像'];
+    x.total = P.totalMin && isFinite(b) && isFinite(v) ? Math.min(b, v) : (isFinite(b) && isFinite(v) ? (b+v)/2 : (isFinite(b) ? b : isFinite(v) ? v : null));
+    if(/大胆枠/.test(x.name)){ x.bold = true; x.name = x.name.replace(/【?大胆枠】?/g,'').trim(); }
+  });
+  const excluded = [];
+  let ok = list.filter(x=>{
+    if(P.needCausal && !(String(x.causal||'').trim().length >= 6)){ excluded.push(`${x.name}（因果を1文で言えない）`); return false; }
+    if(P.minAxis && x.scores?.[P.minAxis.name]!=null && +x.scores[P.minAxis.name] < P.minAxis.min){ excluded.push(`${x.name}（${P.minAxis.name}${x.scores[P.minAxis.name]}）`); return false; }
+    return true;
+  });
+  let forced = false;
+  if(!ok.length && list.length){ ok = list.slice(); forced = true; }
+  ok.sort((a,b)=>(b.total??-1)-(a.total??-1));
+  return { cands: ok.slice(0,3), excluded, forced };
+}
+async function eraRound(s, t, r, M, builder){
+  const T = s.turns[t];
+  T.rounds[r] = [null,null,null]; T.curRound = r;
+  setPhase(`${T.roundTitles[r]}中…`);
+  await Promise.all(UNITS.map((u,i)=> runUnit(s, t, r, i, builder(i), M)));
+  checkAbort();
+  if(isViewing(s,t)) render();
+}
+async function runTimeline(s, t, M, priv, is){
+  const T = s.turns[t];
+  const unit = cfg.tlUnit, text = tlText(), gt0 = +cfg.tlGenTime || 25;
+  T.timeline = { unit, text, genTime: gt0, auto: !!cfg.tlAuto, steps: [], cur: 0, waiting: false, erasPreview: makeEras(unit, text, gt0).map(e=>e.label).join('→') };
+  if(!makeEras(unit, text, gt0).length) throw new Error('時代の区切りが読み取れません（例: 10万,100万,1000万）');
+  T.preset = cfg.chainPreset || 'none';
+  T.rounds = []; T.roundStats = {}; T.roundTitles = ['R0 世界設定']; T.chainN = 0;
+  T.anon = UNITS.map((u,i)=>{ const o = shuffle([0,1,2].filter(k=>k!==i)); return { A:o[0], B:o[1] }; });
+  await chainRound(s, t, 0, M);
+  T.curRound = 0; setPhase('R0 / 議長が世界設定を統合中…');
+  try{
+    const r = await chat(is, msgsPremise(T), txt=>{ T.premise = txt; if(isViewing(s,t) && activeTab==='sum') renderBody(); }, abortCtl.signal, 2500, M.effort, false);
+    addCost(T, r.usage, r.usedSpec);
+    T.premise = sectionOf(r.text, /確定した前提/) || r.text; T.premiseFull = r.text;
+  }catch(e){ if(e.name==='AbortError') throw e; T.premise = ''; }
+  const gm = (T.premiseFull||'').match(/世代時間\s*[:：]\s*約?\s*([\d.,]+)\s*年/);
+  if(gm && +gm[1].replace(/,/g,'') > 0){ T.timeline.genTime = +gm[1].replace(/,/g,''); T.timeline.genFrom = 'R0'; }
+  T.timeline.eras = makeEras(unit, text, T.timeline.genTime);
+  checkAbort();
+  await runEras(s, t, M, is, 0);
+}
+async function runEras(s, t, M, is, from){
+  const T = s.turns[t], tl = T.timeline;
+  for(let e = from; e < tl.eras.length; e++){
+    tl.cur = e;
+    const label = tl.eras[e].label;
+    const st = tl.steps[e] = { label, a:null, b:null, candidates:[], chosen:null, note:'', excluded:[] };
+    st.a = T.rounds.length; T.roundTitles[st.a] = `${label} 案`;
+    await eraRound(s, t, st.a, M, i=> eraMsgs(T, i, e, 'propose'));
+    if(T.rounds[st.a].filter(Boolean).length >= 2){
+      st.b = T.rounds.length; T.roundTitles[st.b] = `${label} 反論・修正`;
+      await eraRound(s, t, st.b, M, i=> eraMsgs(T, i, e, 'cross'));
+    }else st.b = st.a;
+    T.curRound = st.b; setPhase(`${label} / 議長が候補を整理中…`);
+    let j = null;
+    try{
+      const r = await chat(is, msgsEraPick(T, e), null, abortCtl.signal, 3500, 'low', false);
+      addCost(T, r.usage, r.usedSpec);
+      const k = r.text.indexOf('{'); j = parseLoose(r.text.slice(k, r.text.lastIndexOf('}')+1));
+    }catch(err){ if(err.name==='AbortError') throw err; }
+    const pc = processCands(T, j?.candidates);
+    st.candidates = pc.cands; st.excluded = pc.excluded; st.forced = pc.forced; st.note = j?.note || '';
+    if(!st.candidates.length){ st.candidates = [{ name:'（候補を整理できませんでした）', causal:'', body:[], scores:{} }]; }
+    T.finals = UNITS.map((u,i)=> T.rounds[st.b]?.[i] || T.rounds[st.a]?.[i] || { error:true, model:T.models[i] });
+    if(tl.auto){ st.chosen = 0; }
+    else { tl.waiting = true; T.curRound = null; computeStats(T); if(isViewing(s,t)) render(); return; }
+  }
+  // 最終まとめ
+  tl.waiting = false; T.curRound = 'final';
+  setPhase('最終 / 議長が系譜をまとめ中…');
+  T.synth = { text:'', model:is.model, streaming:true };
+  try{
+    const r = await chat(is, msgsTimelineFinal(T), txt=>{ T.synth.text = txt; if(isViewing(s,t) && activeTab==='sum') renderBody(); }, abortCtl.signal, 4000, M.effort, false);
+    T.synth.text = r.text; T.synth.model = r.usedSpec.model; addCost(T, r.usage, r.usedSpec);
+    T.one = oneLiner(r.text);
+  }catch(err){ if(err.name==='AbortError') throw err; T.synth.text = 'まとめに失敗しました: ' + err.message; }
+  T.synth.streaming = false; T.curRound = null;
+  T.chainResult = { remaining:[], splits:[], ideas: tl.steps.map(st=>{ const c = chosenOf(st); return c ? { ...c, era: st.label } : null; }).filter(Boolean) };
+  computeStats(T);
+}
+async function chooseCand(n){
+  const s = current, t = viewTurn, T = s.turns[t], tl = T.timeline;
+  if(!tl?.waiting || abortCtl) return;
+  tl.steps[tl.cur].chosen = n; tl.waiting = false; T.status = 'running';
+  abortCtl = new AbortController(); setRunning(true); render();
+  try{
+    await Promise.all([fetchOR(), fetchG()]);
+    await runEras(s, t, MODES[T.mode] || MODES.eco, intSpec(T.mode, T.specs), tl.cur + 1);
+    T.status = tl.waiting ? 'waiting' : 'done';
+  }catch(e){
+    if(e.name==='AbortError'){ tl.steps.length = tl.cur + 1; tl.steps[tl.cur].chosen = null; tl.waiting = true; T.status = 'waiting'; }
+    else { T.status = 'error'; setPhase('エラー: ' + e.message); }
+  }finally{ T.curRound = null; abortCtl = null; setRunning(false); computeStats(T); await saveSession(s); render(); }
+}
+function copyCand(e, n){
+  const T = current.turns[viewTurn], st = T.timeline.steps[e], x = st?.candidates?.[n];
+  const md = x ? designDocFrom(T, { ...x, era: st.label }) : '';
+  copyText(md).then(ok=> toast(md && ok ? '設計書をコピーしました' : 'コピーできませんでした'));
+}
+
 async function chainRound(s, t, k, M){
   const T = s.turns[t];
   T.rounds[k] = [null,null,null]; T.curRound = k;
@@ -1582,6 +1805,11 @@ function computeStats(T){
     const best = T.draftScores.map((d,i)=>({i, a:d.avg})).filter(x=>x.a!=null).sort((a,b)=>b.a-a.a)[0];
     T.tally = { cls:'info', big:'完成稿', sub: best ? `下書きの最高評価: ${UNITS[best.i].name}（${r1(best.a)}点）` : '3機の下書きを統合' };
   }
+  else if(ty==='chain' && T.timeline){
+    const tl = T.timeline, st = tl.steps[tl.cur];
+    if(tl.waiting) T.tally = { cls:'cond', big:'選択待ち', sub:`${st?.label||''}の候補から1つ選んでください` };
+    else { const last = chosenOf(tl.steps[tl.steps.length-1]); T.tally = { cls:'idea', big:'最終形態', sub:`${tl.eras?.length||0}時代・${last?.name||'-'}` }; }
+  }
   else if(ty==='chain'){
     const R = T.chainResult || { remaining:[], splits:[] };
     T.tally = { cls:'idea', big:'残った案', sub:`${T.chainN||0}ラウンド・残案${R.remaining.length}・割れた論点${R.splits.length}` };
@@ -1589,6 +1817,7 @@ function computeStats(T){
   if(T.tally && T.one) T.tally.one = T.one;
 }
 function phaseDone(T){
+  if(T.type==='chain' && T.timeline) return T.timeline.waiting ? `選択待ち：${T.timeline.steps[T.timeline.cur]?.label||''}の候補から1つ選んでください` : `時系列 完了（${T.timeline.eras?.length||0}時代）`;
   if(T.type==='chain') return `連続議論 完了（${T.chainN||0}ラウンド）`;
   const ty = TYPES[T.type]?.label || '';
   if(T.type==='decision') return T.debated ? '審議完了（討論あり）' : (T.agree?.agree ? '審議完了（初回で一致したため討論省略）' : '審議完了');
@@ -1674,7 +1903,7 @@ function estimate(isFollow){
   const syn = 9000*p0.pin + 2500*p0.pout; lo += syn; hi += syn + 6000*p0.pin + 800*p0.pout;
   if(sumOn && textTok){ const pc = priceOf(cheapSpec(cfg.priv)) || {pin:0,pout:0}; const sc = textTok*pc.pin + 5000*pc.pout; lo += sc; hi += sc; }
   if(typeSel==='chain' && !isFollow){
-    const N = +cfg.chainRounds || 3, round = lo - syn;   // 1ラウンド（3機）ぶん
+    const N = cfg.tl ? makeEras(cfg.tlUnit, tlText(), +cfg.tlGenTime||25).length*2 : (+cfg.chainRounds || 3), round = lo - syn;   // 1ラウンド（3機）ぶん
     const per = []; for(let k=0; k<=N; k++) per.push(round * (1 + k*0.35));
     const tot = per.reduce((a,b)=>a+b,0) + syn*1.6;
     return { lo: tot, hi: tot*1.5, inTok, unknown, per };
@@ -1727,8 +1956,18 @@ function renderCtrl(){
     </div>
     ${typeSel==='chain' ? `<div class="opts">
       <select style="flex:1;min-width:150px;padding:7px 10px;font-size:14px" onchange="setChain('chainPreset', this.value)">${Object.entries(PRESETS).map(([k,v])=>`<option value="${k}" ${cfg.chainPreset===k?'selected':''}>${v.label}</option>`).join('')}</select>
-      <select style="flex:0 0 120px;padding:7px 10px;font-size:14px" onchange="setChain('chainRounds', +this.value)">${[2,3,4,5].map(n=>`<option value="${n}" ${+cfg.chainRounds===n?'selected':''}>${n}ラウンド</option>`).join('')}</select>
-    </div><div class="muted" style="margin-top:4px">仮定を1行入力 → R0前提 → R1案 → 反論・修正 → ${+cfg.chainRounds>=3?'最終ラウンドで収束':'議長がまとめ'}${cfg.chainPreset==='kuso'?'。各案を「生物学的に筋が通るか」「映像映えするか」で評価':''}</div>` : ''}
+      <label class="chk"><input type="checkbox" ${cfg.tl?'checked':''} onchange="setChain('tl', this.checked)">⏳ 時系列</label>
+      ${cfg.tl ? '' : `<select style="flex:0 0 120px;padding:7px 10px;font-size:14px" onchange="setChain('chainRounds', +this.value)">${[2,3,4,5].map(n=>`<option value="${n}" ${+cfg.chainRounds===n?'selected':''}>${n}ラウンド</option>`).join('')}</select>`}
+    </div>
+    ${cfg.tl ? `<div class="opts">
+      <div class="seg" style="flex:0 0 150px"><div class="${cfg.tlUnit==='years'?'on':''}" onclick="setChain('tlUnit','years')">年数</div><div class="${cfg.tlUnit==='gens'?'on':''}" onclick="setChain('tlUnit','gens')">世代数</div></div>
+      <input style="flex:1;min-width:140px;padding:7px 10px;font-size:14px" value="${esc(tlText())}" placeholder="${cfg.tlUnit==='gens'?'4000,4万,40万':'10万,100万,1000万'}" onchange="setChain(cfg.tlUnit==='gens'?'tlGensText':'tlYearsText', this.value)">
+    </div>
+    <div class="opts">
+      <label class="chk">世代時間 <input type="number" min="0.01" step="any" style="width:70px;padding:5px 8px;font-size:14px" value="${cfg.tlGenTime}" onchange="setChain('tlGenTime', +this.value||25)"> 年</label>
+      <label class="chk"><input type="checkbox" ${cfg.tlAuto?'checked':''} onchange="setChain('tlAuto', this.checked)">自動で次の時代へ</label>
+    </div>
+    <div class="muted" style="margin-top:4px">時代: ${esc(makeEras(cfg.tlUnit, tlText(), +cfg.tlGenTime||25).map(e=>e.label).join(' → ') || '（区切りを入力してください）')}<br>※世代時間はR0で対象生物の値が決まればそちらで換算し直します</div>` : ''}<div class="muted" style="margin-top:4px">${cfg.tl ? '仮定を1行入力 → R0世界設定 → 時代ごとに「案→反論→候補2〜3案」→ 選んで次の時代へ' : `仮定を1行入力 → R0前提 → R1案 → 反論・修正 → ${+cfg.chainRounds>=3?'最終ラウンドで収束':'議長がまとめ'}`}${cfg.chainPreset==='kuso'?'。各案を「生物学的に筋が通るか」「映像映えするか」で評価':''}</div>` : ''}
     ${textTok ? `<label class="chk" style="margin-top:8px"><input type="checkbox" ${sumOn?'checked':''} onchange="setSum(this.checked)">要約してから審議（長い資料が安くなる・細部は落ちる）</label>` : ''}
     ${freeWarn ? `<div class="warn">CASPERがGoogle無料枠で動きます。添付内容がGoogleの改善に使われるので、個人的・機密な資料なら「🔒機密」をON</div>` : ''}
     <div class="muted" style="margin-top:8px">${esc(names)}${typeSel!=='auto'?`・${TYPES[typeSel].label}型で審議`:''}</div>
@@ -1744,11 +1983,12 @@ function render(){
   $('r-meta').textContent = `${s.turns.length>1?`Q${viewTurn+1} ・`:''}${ty?`${ty.icon}${ty.label}型${T.typeAuto?'（自動判定）':''}・`:''}${MODES[T.mode]?.label||''}モード${T.web?'・Web検索':''}${T.priv?'・🔒機密':''}`;
   $('r-q').textContent = T.q;
   $('r-docs').innerHTML = (T.docs||[]).map(d=>`<span class="chip">${d.kind==='image'?'🖼':'📄'} <span class="nm">${esc(d.name)}</span></span>`).join('') + (T.summary ? `<span class="chip">📝 要約して審議</span>` : '');
-  if(T.status!=='running') setPhase(T.status==='done' ? phaseDone(T) : (T.status==='aborted' ? '中断' : 'エラー'));
+  if(T.status!=='running') setPhase(T.status==='done' || T.status==='waiting' ? phaseDone(T) : (T.status==='aborted' ? '中断' : 'エラー'));
   renderBanner(); renderTriad(); renderTabs(); renderBody(); renderCost(); renderRate();
   const last = viewTurn === s.turns.length-1;
-  $('r-follow').classList.toggle('hidden', !(last && T.status!=='running'));
-  if(last && T.status!=='running') renderCtrl();
+  const canFollow = last && T.status!=='running' && T.status!=='waiting';
+  $('r-follow').classList.toggle('hidden', !canFollow);
+  if(canFollow) renderCtrl();
 }
 function setTurn(k){ viewTurn = k; activeTab = 'sum'; render(); }
 function renderBanner(){
@@ -1829,6 +2069,41 @@ function richText(text, color){
   return `<div style="--uc:${color||'var(--accent)'}">${top}${html}${bottom}</div>`;
 }
 function extrasHtml(T){
+  if(T.type==='chain' && T.timeline){
+    const tl = T.timeline, P = presetOf(T);
+    let h = '';
+    if(T.premiseFull || T.premise) h += `<details class="round"><summary><span>🌍 世界設定（R0）</span><span class="muted">${tl.genFrom==='R0' ? `世代時間 ${tl.genTime}年` : 'タップ'}</span></summary><div class="inner">${richText(T.premiseFull || T.premise)}</div></details>`;
+    const scoreLine = x => x.scores && Object.keys(x.scores).length ? `<div class="muted" style="margin-top:2px">${Object.entries(x.scores).map(([k,v])=>`${esc(k)} <b style="color:var(--strong)">${esc(v)}</b>`).join('・')}${x.total!=null?` → 総合 <b style="color:var(--ok)">${r1(x.total)}</b>${P.totalMin?'（低い方）':''}`:''}</div>` : '';
+    const card = (x, e, n, mode) => `
+      <div class="sec ${mode==='chosen'?'sec-final':'sec-plain'}" style="margin-top:8px">
+        <div class="row" style="align-items:flex-start;gap:8px">
+          <div style="flex:1"><div style="font-size:15px;font-weight:800">${esc(x.name)}${x.bold?' <span style="color:var(--ng);font-size:11px">大胆枠</span>':''}</div>${scoreLine(x)}</div>
+          <button class="btn small" style="flex:0;white-space:nowrap" onclick="copyCand(${e},${n})">📋 設計書</button>
+        </div>
+        ${x.causal ? `<div style="font-size:13px;margin-top:6px"><b style="color:var(--hold)">因果：</b>${esc(x.causal)}</div>` : ''}
+        ${asList(x.body).length ? `<ul style="margin:4px 0 0;padding-left:18px;font-size:13px">${asList(x.body).slice(0,5).map(b=>`<li>${esc(b)}</li>`).join('')}</ul>` : ''}
+        ${mode==='pick' ? `<button class="btn primary" style="width:100%;margin-top:8px" onclick="chooseCand(${n})">この案で${e < tl.eras.length-1 ? '次の時代へ' : '確定してまとめへ'}</button>` : ''}
+      </div>`;
+    h += `<div class="card"><div class="muted">⏳ 時系列（${tl.unit==='gens'?'世代数':'年数'}モード・世代時間 ${tl.genTime}年${tl.genFrom==='R0'?'（R0で決定）':''}${tl.auto?'・自動進行':''}）</div>`;
+    (tl.eras||[]).forEach((era, e)=>{
+      const st = tl.steps[e];
+      h += `<div style="margin-top:12px;font-weight:800;color:${st ? 'var(--accent)' : 'var(--muted)'}">${e+1}. ${esc(era.label)}${!st ? '（未着手）' : ''}</div>`;
+      if(!st) return;
+      if(st.note) h += `<div class="muted">${esc(st.note)}</div>`;
+      if(st.chosen!=null){ h += card(st.candidates[st.chosen], e, st.chosen, 'chosen'); }
+      else if(tl.waiting && tl.cur===e){ h += `<div class="warn">候補から1つ選んでください${st.forced?'（ルールを満たす案がなく、全候補を表示）':''}</div>` + st.candidates.map((x,n)=>card(x, e, n, 'pick')).join(''); }
+      if(st.excluded?.length) h += `<div class="muted" style="margin-top:4px">除外: ${esc(st.excluded.join('、'))}</div>`;
+    });
+    h += `</div>`;
+    const stt = T.roundStats || {};
+    const keys = Object.keys(stt).sort((a,b)=> (a==='final')-(b==='final') || (+a)-(+b));
+    if(keys.length){
+      const rows = keys.map(k=>{ const r = stt[k]; const nm = k==='final' ? '最終まとめ' : chainTitle(T, +k);
+        return `<tr><td style="font-size:12px">${esc(nm)}</td><td>${(r.tin/1000).toFixed(1)}k / ${(r.tout/1000).toFixed(1)}k</td><td>${r.cost ? yen(r.cost)+'円' : (r.free ? '無料枠' : '-')}</td></tr>`; }).join('');
+      h += `<details class="round"><summary><span>💴 ラウンドごとのコスト</span><span class="muted">合計 約${yen(T.cost)}円</span></summary><div class="inner"><table class="score"><tr><th>ラウンド</th><th>入力/出力</th><th>費用</th></tr>${rows}</table></div></details>`;
+    }
+    return h;
+  }
   if(T.type==='chain'){
     let h = '';
     const ideas = T.chainResult?.ideas || [];
@@ -1904,7 +2179,7 @@ function renderBody(){
   const html = T.rounds.map((round, r)=>{
     const x = round?.[i]; const err = T.errors?.[r+'-'+i];
     let title = T.type==='chain' ? chainTitle(T, r) : (r===0 ? '01 独立回答（初回・確定）' : `04 ${TYPES[T.type]?.r2||'第2段階'}`);
-    if((r===1 && T.type!=='chain' || r>=2 && T.type==='chain') && T.anon?.[i]) title += `<br><span class="muted">機A=${UNITS[T.anon[i].A].name} / 機B=${UNITS[T.anon[i].B].name}</span>`;
+    if((r===1 && T.type!=='chain' || r>=1 && T.type==='chain' && /反論|収束/.test(chainTitle(T,r))) && T.anon?.[i]) title += `<br><span class="muted">機A=${UNITS[T.anon[i].A].name} / 機B=${UNITS[T.anon[i].B].name}</span>`;
     const lb = x && !x.streaming ? unitLabel(T, i, { x, r }).vd : '';
     const meta = x && !x.streaming ? `${lb}${x.conf!=null?' / 確信'+x.conf:''}${x.changed?' / 考え変更':''}` : (x ? '生成中…' : (err ? '応答なし' : '待機'));
     const open = r===T.rounds.length-1 ? 'open' : '';
@@ -2066,22 +2341,24 @@ async function testGoogle(){
 
 /* ---------- 設計書コピー ---------- */
 function asList(v){ return Array.isArray(v) ? v.filter(Boolean) : (v ? String(v).split(/\n+/).map(x=>x.replace(/^[-・*]\s*/,'')).filter(Boolean) : []); }
-function designDoc(T, n){
-  const x = T.chainResult?.ideas?.[n]; if(!x) return '';
+function designDoc(T, n){ const x = T.chainResult?.ideas?.[n]; return x ? designDocFrom(T, x) : ''; }
+function designDocFrom(T, x){
   const kuso = T.preset==='kuso';
   const L = [];
-  L.push(`# ${x.name || '（案名なし）'}${x.bold ? '【大胆枠】' : ''}`, '');
+  L.push(`# ${x.era ? `［${x.era}］` : ''}${x.name || '（案名なし）'}${x.bold ? '【大胆枠】' : ''}`, '');
   L.push(`- 仮定: ${T.q}`);
+  if(x.causal) L.push(`- 因果: ${x.causal}`);
   if(x.support) L.push(`- 支持: ${x.support}`);
-  if(x.scores && Object.keys(x.scores).length) L.push(`- 評価: ${Object.entries(x.scores).map(([k,v])=>`${k} ${v}/10`).join(' ／ ')}`);
+  if(x.scores && Object.keys(x.scores).length) L.push(`- 評価: ${Object.entries(x.scores).map(([k,v])=>`${k} ${v}/10`).join(' ／ ')}${x.total!=null ? ` ／ 総合 ${r1(x.total)}` : ''}`);
   L.push('', `## ${kuso ? '淘汰圧の前提' : '前提'}`, x.pressure || '（記載なし）');
   L.push('', '## 体の特徴', ...(asList(x.body).length ? asList(x.body).map(b=>`- ${b}`) : ['（記載なし）']));
   L.push('', '## 根拠', x.rationale || '（記載なし）');
   L.push('', kuso ? '## 懸念点（成立に必要な条件）' : '## 懸念点', ...(asList(x.concerns).length ? asList(x.concerns).map(b=>`- ${b}`) : ['（記載なし）']));
-  if(T.premise) L.push('', '## 確定した前提（議論全体）', T.premise.trim());
+  if(T.timeline){ const idx = T.timeline.steps.findIndex(st=>st.label===x.era); if(idx>0) L.push('', '## ここまでの系譜', lineageText(T, idx)); }
+  if(T.premise) L.push('', T.timeline ? '## 世界設定' : '## 確定した前提（議論全体）', T.premise.trim());
   const sp = T.chainResult?.splits || [];
   if(sp.length) L.push('', '## 未決着の論点', ...sp.map(z=>`- ${z.issue}: ${UNITS.map(u=>`${u.name.split('-')[0]}=${z.stances?.[u.name.split('-')[0]] ?? '-'}`).join(' ／ ')}`));
-  L.push('', `> MAGI 連続議論（${T.chainN}ラウンド・${new Date(T.created).toLocaleDateString('ja-JP')}）`);
+  L.push('', `> MAGI ${T.timeline ? '時系列モード' : `連続議論（${T.chainN}ラウンド）`}・${new Date(T.created).toLocaleDateString('ja-JP')}`);
   return L.join('\n');
 }
 async function copyText(text){
