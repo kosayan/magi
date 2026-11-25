@@ -281,7 +281,7 @@ table.score td.hi{color:var(--ok);font-weight:800} table.score td.split{color:va
 /* =====================================================================
    定義
    ===================================================================== */
-const APP_VERSION = 'v4.4';
+const APP_VERSION = 'v4.5';
 const NEUTRAL = (n, name) => `あなたは合議制AI「MAGI」の第${n}ユニット ${name}。他の2機と対等な、独立した判断者である。特定の役割や立場は持たず、自分の知識と推論で最も妥当と考える答えを出す。事実と推測をはっきり区別し、不確かな点は不確かと明言する。`;
 const UNITS = [
   { key:'m', name:'MELCHIOR-1', jp:'メルキオール', vendor:'anthropic', color:'#4fc3f7', persona: NEUTRAL(1,'MELCHIOR') },
@@ -1349,9 +1349,9 @@ ${T.chainN} ラウンドの議論を仕切り、最終結果をまとめてく�
 ## 確定した前提
 （要約）
 
-最後に必ず次のJSONを付ける（コードブロック）：
+最後に必ず次のJSONを付ける（コードブロック）。ideas は「残った案」と同じ案を同じ順で、設計書としてそのまま使える具体さで書く。scores は2軸評価がない場合は省略：
 \`\`\`json
-{"remaining":["案名"],"splits":[{"issue":"論点","stances":{"MELCHIOR":"立場（20字以内）","BALTHASAR":"立場","CASPER":"立場"}}]}
+{"remaining":["案名"],"ideas":[{"name":"案名","pressure":"この案に効いている淘汰圧・前提（1〜3文）","body":["体の特徴（箇条書き3〜6個）"],"rationale":"なぜそうなるかの根拠（2〜4文）","concerns":["懸念点・弱い部分（1〜3個）"],"support":"どの機が推したか","scores":{"生物学":0,"映像":0}}],"splits":[{"issue":"論点","stances":{"MELCHIOR":"立場（20字以内）","BALTHASAR":"立場","CASPER":"立場"}}]}
 \`\`\`` } ];
 }
 async function chainRound(s, t, k, M){
@@ -1394,7 +1394,7 @@ async function runChain(s, t, M, priv, is){
     const r = await chat(is, msgsChainFinal(T), txt=>{ T.synth.text = txt; if(isViewing(s,t) && activeTab==='sum') renderBody(); }, abortCtl.signal, 3500, M.effort, false);
     T.synth.text = r.text; T.synth.model = r.usedSpec.model; addCost(T, r.usage, r.usedSpec);
     const jm = r.text.match(/```json\s*([\s\S]*?)```/) ; const j = jm ? (()=>{ try{ return JSON.parse(jm[1]); }catch(e){ return jsonFrom(jm[1]); } })() : jsonFrom(r.text.slice(r.text.lastIndexOf('{"remaining')));
-    T.chainResult = { remaining: j?.remaining || [], splits: j?.splits || [] };
+    T.chainResult = { remaining: j?.remaining || [], ideas: Array.isArray(j?.ideas) ? j.ideas : [], splits: j?.splits || [] };
     T.one = oneLiner(r.text);
   }catch(e){ if(e.name==='AbortError') throw e; T.synth.text = 'まとめに失敗しました: ' + e.message; T.chainResult = { remaining:[], splits:[] }; }
   T.synth.streaming = false;
@@ -1764,6 +1764,18 @@ function richText(text, color){
 function extrasHtml(T){
   if(T.type==='chain'){
     let h = '';
+    const ideas = T.chainResult?.ideas || [];
+    if(ideas.length){
+      h += `<div class="card"><div class="muted">残った案（設計書をMarkdownでコピーできます）</div>${ideas.map((x,n)=>`
+        <div class="sec sec-final" style="margin-top:10px">
+          <div class="row" style="align-items:flex-start;gap:8px">
+            <div style="flex:1"><div class="hd">案${n+1}</div><div style="font-size:16px;font-weight:800">${esc(x.name||'')}</div>
+              ${x.scores && Object.keys(x.scores).length ? `<div class="muted" style="margin-top:2px">${Object.entries(x.scores).map(([k,v])=>`${esc(k)} <b style="color:var(--strong)">${esc(v)}</b>/10`).join('・')}</div>` : ''}</div>
+            <button class="btn small" style="flex:0;white-space:nowrap" onclick="copyDesign(${n})">📋 設計書コピー</button>
+          </div>
+          ${asList(x.body).length ? `<ul style="margin:6px 0 0;padding-left:18px;font-size:13px">${asList(x.body).slice(0,4).map(b=>`<li>${esc(b)}</li>`).join('')}</ul>` : ''}
+        </div>`).join('')}</div>`;
+    }
     if(T.premiseFull || T.premise) h += `<details class="round"><summary><span>🧱 確定した前提（R0）</span><span class="muted">タップ</span></summary><div class="inner">${richText(T.premiseFull || T.premise)}</div></details>`;
     const sp = T.chainResult?.splits || [];
     if(sp.length){
@@ -1980,6 +1992,35 @@ async function testGoogle(){
     }catch(e){ log(`× ${m}: ${e.message}`); }
   }
   log('\nどのモデルも使えませんでした。上のエラー文をそのまま送ってもらえれば原因を調べます。');
+}
+
+/* ---------- 設計書コピー ---------- */
+function asList(v){ return Array.isArray(v) ? v.filter(Boolean) : (v ? String(v).split(/\n+/).map(x=>x.replace(/^[-・*]\s*/,'')).filter(Boolean) : []); }
+function designDoc(T, n){
+  const x = T.chainResult?.ideas?.[n]; if(!x) return '';
+  const kuso = T.preset==='kuso';
+  const L = [];
+  L.push(`# ${x.name || '（案名なし）'}`, '');
+  L.push(`- 仮定: ${T.q}`);
+  if(x.support) L.push(`- 支持: ${x.support}`);
+  if(x.scores && Object.keys(x.scores).length) L.push(`- 評価: ${Object.entries(x.scores).map(([k,v])=>`${k} ${v}/10`).join(' ／ ')}`);
+  L.push('', `## ${kuso ? '淘汰圧の前提' : '前提'}`, x.pressure || '（記載なし）');
+  L.push('', '## 体の特徴', ...(asList(x.body).length ? asList(x.body).map(b=>`- ${b}`) : ['（記載なし）']));
+  L.push('', '## 根拠', x.rationale || '（記載なし）');
+  L.push('', '## 懸念点', ...(asList(x.concerns).length ? asList(x.concerns).map(b=>`- ${b}`) : ['（記載なし）']));
+  if(T.premise) L.push('', '## 確定した前提（議論全体）', T.premise.trim());
+  const sp = T.chainResult?.splits || [];
+  if(sp.length) L.push('', '## 未決着の論点', ...sp.map(z=>`- ${z.issue}: ${UNITS.map(u=>`${u.name.split('-')[0]}=${z.stances?.[u.name.split('-')[0]] ?? '-'}`).join(' ／ ')}`));
+  L.push('', `> MAGI 連続議論（${T.chainN}ラウンド・${new Date(T.created).toLocaleDateString('ja-JP')}）`);
+  return L.join('\n');
+}
+async function copyText(text){
+  try{ await navigator.clipboard.writeText(text); return true; }catch(e){}
+  try{ const ta = document.createElement('textarea'); ta.value = text; ta.style.position='fixed'; ta.style.opacity='0'; document.body.appendChild(ta); ta.focus(); ta.select(); const ok = document.execCommand('copy'); ta.remove(); return ok; }catch(e){ return false; }
+}
+async function copyDesign(n){
+  const md = designDoc(current.turns[viewTurn], n);
+  toast(md && await copyText(md) ? '設計書をコピーしました' : 'コピーできませんでした');
 }
 
 /* ---------- アプリ更新 ---------- */
