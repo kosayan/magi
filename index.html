@@ -162,8 +162,8 @@ details.plain summary{cursor:pointer;color:var(--muted);font-size:13px;margin-to
 <body>
 <div class="wrap">
   <header>
-    <div class="logo" onclick="go('home')">MAGI<small>MULTI-AI GOVERNANCE INTERFACE v3</small></div>
-    <button class="btn" onclick="openSettings()">⚙ 設定</button>
+    <div class="logo" onclick="go('home')">MAGI<small>MULTI-AI GOVERNANCE INTERFACE <span id="ver"></span></small></div>
+    <div class="row" style="flex:0;gap:6px"><button class="btn" style="flex:0;white-space:nowrap" onclick="hardUpdate()" title="アプリを最新に更新">↻ 更新</button><button class="btn" style="flex:0;white-space:nowrap" onclick="openSettings()">⚙ 設定</button></div>
   </header>
 
   <!-- HOME -->
@@ -1140,10 +1140,25 @@ function saveSettings(){
 function resetPersonas(){ UNITS.forEach((u,i)=>{ $(`s-p-${i}`).value = u.persona; }); }
 function closeSettings(){ $('settings').classList.add('hidden'); }
 
+/* ---------- アプリ更新 ---------- */
+const APP_VERSION = 'v3.1';
+async function hardUpdate(){
+  if(abortCtl) return toast('審議中は更新できません。終わってから押してください');
+  toast('最新版を読み込み中…');
+  try{
+    const reg = await navigator.serviceWorker?.getRegistration();
+    if(reg){ await reg.update(); }
+    if(window.caches){ const keys = await caches.keys(); await Promise.all(keys.map(k=>caches.delete(k))); }
+  }catch(e){ console.warn(e); }
+  location.href = location.pathname + '?u=' + Date.now();
+}
+
 /* =====================================================================
    起動
    ===================================================================== */
 (async()=>{
+  $('ver').textContent = APP_VERSION;
+  if(location.search.includes('u=')) history.replaceState(null, '', location.pathname);
   go('home');
   await loadSessions(); renderHistory();
   await Promise.all([fetchOR(), fetchG()]); renderCtrl();
