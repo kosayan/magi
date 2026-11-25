@@ -238,7 +238,7 @@ table.score td.hi{color:var(--ok);font-weight:800} table.score td.split{color:va
     <div class="muted"><a href="https://openrouter.ai/keys" style="color:var(--m)">openrouter.ai/keys</a> で発行</div>
 
     <label>Google AI Studio APIキー（任意・CASPERを無料枠で動かす）</label>
-    <input id="s-gkey" type="password" placeholder="AIza..." autocomplete="off">
+    <input id="s-gkey" type="password" placeholder="AQ.… または AIza…" autocomplete="off">
     <div class="muted"><a href="https://aistudio.google.com/apikey" style="color:var(--m)">aistudio.google.com/apikey</a> で発行。無料枠は入力内容がGoogleの改善に使われます。「機密」にチェックした審議では無料枠を使いません。</div>
 
     <label>討論</label>
@@ -279,7 +279,7 @@ table.score td.hi{color:var(--ok);font-weight:800} table.score td.split{color:va
 /* =====================================================================
    定義
    ===================================================================== */
-const APP_VERSION = 'v4.1';
+const APP_VERSION = 'v4.2';
 const NEUTRAL = (n, name) => `あなたは合議制AI「MAGI」の第${n}ユニット ${name}。他の2機と対等な、独立した判断者である。特定の役割や立場は持たず、自分の知識と推論で最も妥当と考える答えを出す。事実と推測をはっきり区別し、不確かな点は不確かと明言する。`;
 const UNITS = [
   { key:'m', name:'MELCHIOR-1', jp:'メルキオール', vendor:'anthropic', color:'#4fc3f7', persona: NEUTRAL(1,'MELCHIOR') },
@@ -467,7 +467,7 @@ async function fetchOR(){
 async function fetchG(){
   if(gModels.length || !cfg.gkey) return;
   try{
-    const j = await (await fetch('https://generativelanguage.googleapis.com/v1beta/models?pageSize=200&key='+encodeURIComponent(cfg.gkey))).json();
+    const j = await (await fetch('https://generativelanguage.googleapis.com/v1beta/models?pageSize=200', { headers:{ 'x-goog-api-key': cfg.gkey } })).json();
     gModels = (j.models||[]).filter(m=>(m.supportedGenerationMethods||[]).includes('generateContent')).map(m=>m.name.replace(/^models\//,''));
   }catch(e){ console.warn('Google model list', e); }
 }
@@ -606,11 +606,8 @@ function autoSum(){ if(!sumTouched) sumOn = cfg.sumTh>0 && pendingTextTokens() >
    ===================================================================== */
 async function chatRaw(spec, messages, onDelta, signal, maxTokens, effort, web){
   let url, headers, body;
-  if(spec.provider==='google'){
-    url = 'https://generativelanguage.googleapis.com/v1beta/openai/chat/completions';
-    headers = { 'Authorization':'Bearer '+cfg.gkey, 'Content-Type':'application/json' };
-    body = { model:spec.model, messages: stripCache(messages), stream:true, max_tokens:maxTokens, stream_options:{ include_usage:true } };
-  }else{
+  if(spec.provider==='google') return geminiNative(spec, messages, onDelta, signal, maxTokens);
+  {
     url = 'https://openrouter.ai/api/v1/chat/completions';
     headers = { 'Authorization':'Bearer '+cfg.key, 'Content-Type':'application/json', 'HTTP-Referer':location.origin, 'X-Title':'MAGI' };
     const cacheOK = /^(anthropic|google)\//.test(spec.model);
@@ -639,6 +636,48 @@ async function chatRaw(spec, messages, onDelta, signal, maxTokens, effort, web){
     }
   }
   if(err && !text) throw new Error(err);
+  return { text, usage };
+}
+/** Gemini公式API（新形式のAQ.キーにも対応するネイティブ方式） */
+function toGemini(messages){
+  const sys = [], contents = [];
+  for(const m of messages){
+    const parts = [];
+    const push = p => {
+      if(p.type==='text' || typeof p === 'string') parts.push({ text: typeof p === 'string' ? p : p.text });
+      else if(p.type==='image_url'){ const mm = String(p.image_url.url).match(/^data:([^;]+);base64,(.*)$/); if(mm) parts.push({ inlineData:{ mimeType:mm[1], data:mm[2] } }); }
+    };
+    Array.isArray(m.content) ? m.content.forEach(push) : push(m.content);
+    if(m.role==='system'){ sys.push(...parts.map(x=>x.text).filter(Boolean)); continue; }
+    const role = m.role==='assistant' ? 'model' : 'user';
+    const last = contents[contents.length-1];
+    if(last && last.role===role) last.parts.push(...parts); else contents.push({ role, parts });
+  }
+  return { systemInstruction: sys.length ? { parts:[{ text: sys.join('\n\n') }] } : undefined, contents };
+}
+async function geminiNative(spec, messages, onDelta, signal, maxTokens){
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(spec.model)}:streamGenerateContent?alt=sse`;
+  const body = { ...toGemini(messages), generationConfig:{ maxOutputTokens: maxTokens } };
+  const res = await fetch(url, { method:'POST', signal, headers:{ 'x-goog-api-key': cfg.gkey, 'Content-Type':'application/json' }, body: JSON.stringify(body) });
+  if(!res.ok){ let t=''; try{ t = await res.text(); }catch(e){} const err = new Error(`HTTP ${res.status} ${t.slice(0,300)}`); err.status = res.status; throw err; }
+  const reader = res.body.getReader(); const dec = new TextDecoder();
+  let buf='', text='', usage=null;
+  while(true){
+    const { done, value } = await reader.read();
+    if(done) break;
+    buf += dec.decode(value, { stream:true });
+    let idx;
+    while((idx = buf.indexOf('\n')) >= 0){
+      const line = buf.slice(0, idx).trim(); buf = buf.slice(idx+1);
+      if(!line.startsWith('data:')) continue;
+      let j; try{ j = JSON.parse(line.slice(5).trim()); }catch(e){ continue; }
+      if(j.error) throw new Error(j.error.message || 'Gemini error');
+      const parts = j.candidates?.[0]?.content?.parts || [];
+      const d = parts.filter(p=>!p.thought && p.text).map(p=>p.text).join('');
+      if(d){ text += d; onDelta && onDelta(text); }
+      if(j.usageMetadata) usage = j.usageMetadata;
+    }
+  }
   return { text, usage };
 }
 function stripCache(messages){
