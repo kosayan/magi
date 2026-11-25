@@ -281,7 +281,7 @@ table.score td.hi{color:var(--ok);font-weight:800} table.score td.split{color:va
 /* =====================================================================
    定義
    ===================================================================== */
-const APP_VERSION = 'v4.3';
+const APP_VERSION = 'v4.4';
 const NEUTRAL = (n, name) => `あなたは合議制AI「MAGI」の第${n}ユニット ${name}。他の2機と対等な、独立した判断者である。特定の役割や立場は持たず、自分の知識と推論で最も妥当と考える答えを出す。事実と推測をはっきり区別し、不確かな点は不確かと明言する。`;
 const UNITS = [
   { key:'m', name:'MELCHIOR-1', jp:'メルキオール', vendor:'anthropic', color:'#4fc3f7', persona: NEUTRAL(1,'MELCHIOR') },
@@ -382,10 +382,19 @@ const TYPES = {
 ---
 確信度: 0〜100の整数` },
 };
+TYPES.chain = { label:'連続', icon:'🔁', desc:'仮定1行から3機が複数ラウンド議論', r2:'議論', format:'' };
 const TYPE_KEYS = Object.keys(TYPES);
+const ROUTE_KEYS = ['decision','research','evaluation','ideation','creation'];   // 自動判定の対象（連続は手動のみ）
+const PRESETS = {
+  none: { label:'プリセットなし', r0:'', idea:'', axes:[] },
+  kuso: { label:'🧬 空想淘汰圧', axes:['生物学','映像'],
+    r0:'前提には必ず「主な淘汰圧（何が生存・繁殖を左右するか）」「食料・エネルギー源」「繁殖の条件」「環境・期間」を含める。',
+    idea:'各案には「生物学的な根拠（どの淘汰圧で、どんな段階を経て進化したか）」と「映像としての見どころ（形・動き・色・スケール感）」を必ず書く。',
+    axisDesc:'「生物学＝生物学的に筋が通るか」「映像＝映像映えするか」' },
+};
 
 const DEFAULT_CFG = {
-  v:4, key:'', gkey:'', mode:'eco', web:false, priv:false, debate:'auto', intModel:'auto', sumTh:30000,
+  v:4, key:'', gkey:'', mode:'eco', web:false, priv:false, debate:'auto', intModel:'auto', sumTh:30000, chainRounds:3, chainPreset:'none',
   models:{ eco:['auto','auto','auto'], max:['auto','auto','auto'] },
   personas: UNITS.map(u=>u.persona),
 };
@@ -1155,7 +1164,7 @@ async function startRun(isFollow){
         const r = await chat(cheapSpec(priv), msgsRoute(T), null, abortCtl.signal, 200, 'low', false);
         addCost(T, r.usage, r.usedSpec);
         const j = jsonFrom(r.text);
-        T.type = j && TYPES[j.type] ? j.type : 'research';
+        T.type = j && ROUTE_KEYS.includes(j.type) ? j.type : 'research';
         T.typeReason = j?.reason || '';
       }catch(e){ if(e.name==='AbortError') throw e; T.type = 'research'; T.typeReason = '判定失敗のため調査型'; }
       render();
@@ -1168,6 +1177,8 @@ async function startRun(isFollow){
       T.summary = r.text.trim() || null; T.sumModel = r.usedSpec.model;
       checkAbort();
     }
+    // 🔁 連続議論モード
+    if(T.type==='chain'){ await runChain(s, t, M, priv, intSpec(mode, specs)); T.status = 'done'; setPhase(phaseDone(T)); return; }
     // 01 独立回答
     setPhase(`01 / ${TYPES[T.type].label}：独立回答中…`);
     T.rounds[0] = [null,null,null];
@@ -1205,6 +1216,190 @@ async function startRun(isFollow){
     setRunning(false); abortCtl = null;
     await saveSession(s); render();
   }
+}
+
+/* =====================================================================
+   🔁 連続議論モード
+   ===================================================================== */
+function chainTitle(T, k){
+  if(k===0) return 'R0 前提の提案';
+  if(k===1) return 'R1 各自の案';
+  if(k===T.chainN && T.chainN>=3) return `R${k} 収束`;
+  return `R${k} 反論・修正`;
+}
+function presetOf(T){ return PRESETS[T.preset] || PRESETS.none; }
+function scoreFmt(T){ const P = presetOf(T); return P.axes.length ? P.axes.map(a=>`${a} N/10`).join(' / ') : ''; }
+function chainOthers(T, i, k){
+  const anon = T.anon[i];
+  return Object.entries(anon).map(([lab, u]) => {
+    let x = null; for(let r=k; r>=1 && !x; r--) x = T.rounds[r]?.[u];
+    return `### 機${lab}の最新の案\n${x?.text || '（応答なし）'}`;
+  }).join('\n\n');
+}
+function chainInstr(T, i, k){
+  const P = presetOf(T), sf = scoreFmt(T);
+  if(k===0) return `【仮定】\n${T.q}\n\nこれは連続議論モードです。3機が対等な立場で、複数ラウンドかけてこの仮定を掘り下げます。他のユニットの意見はまだ見えません。
+
+第0ラウンド：前提の決定
+この仮定を議論するための土台になる前提条件を3〜6項目提案してください。何が結果を左右するか、どんな制約があるかを具体的に。${P.r0}
+
+# 回答形式
+## 前提の提案
+- 項目名: 内容（理由も一言）
+
+---
+確信度: 0〜100の整数`;
+  if(k===1) return `議長が3機の提案を統合し、前提が確定しました。
+
+## 確定した前提
+${T.premise || '（前提の統合に失敗。仮定から各自で妥当な前提を置くこと）'}
+
+第1ラウンド：各自の案
+この前提のもとで、仮定に対する案（起こりうる結果・具体的な姿・シナリオ）を最大3つ出してください。互いに方向性を変え、ありきたりな案は避ける。${P.idea}
+
+# 回答形式
+## 案
+1. **案名** — 説明（根拠を含めて2〜4文）
+2. **案名** — 説明
+3. **案名** — 説明
+
+---
+確信度: 0〜100の整数`;
+  const converge = k===T.chainN && T.chainN>=3;
+  const scoring = sf ? `\n\n## 他機の案の評価\n（他機の各案を${P.axisDesc}の2軸で採点）\n- 機A1 案名: ${sf} — ひとこと\n（他機の全案）` : '';
+  if(!converge) return `第${k}ラウンド：反論・修正
+他の2機の最新の案を匿名で示します。
+
+${chainOthers(T, i, k-1)}
+
+# 指示
+- 他機の案の根拠の弱い点・矛盾・前提との食い違いを具体的に指摘する。良い案や良い要素は認めて、自分の案に取り込んでよい。
+- 多数派に合わせるための同調はしない。根拠が覆されない限り自分の案を維持する。
+- そのうえで自分の案を改訂する（最大3つ。他機の案を改良したものでもよい）。
+
+# 回答形式
+## 反論・指摘
+- 機A: 〜
+- 機B: 〜${scoring}
+
+## 改訂した案
+1. **案名** — 説明
+（最大3つ）
+
+---
+確信度: 0〜100の整数
+変更: あり / なし
+変更理由: （案を大きく変えた場合は決め手になった指摘。変えていなければ「なし」）`;
+  return `第${k}ラウンド（最終）：収束
+他の2機の最新の案を匿名で示します。
+
+${chainOthers(T, i, k-1)}
+
+# 指示
+- これまでの議論全体を踏まえ、最終的に残すべき案を最大3つに絞る。他機の案や、複数の案を組み合わせたものでもよい。
+- まだ意見が割れていて決着がついていない論点を挙げ、自分の立場を明記する。
+
+# 回答形式
+## 残すべき案
+1. **案名** — 残す理由${sf ? `（${sf}）` : ''}
+（最大3つ）
+
+## まだ割れている論点
+- 論点: 自分の立場と理由
+
+---
+確信度: 0〜100の整数
+変更: あり / なし
+変更理由: （なし）`;
+}
+function chainMsgs(T, i, r){
+  const msgs = [ sysMsg(i), { role:'user', content:[ ...docParts(T), { type:'text', text: chainInstr(T, i, 0) } ] } ];
+  for(let k=0; k<r; k++){
+    msgs.push({ role:'assistant', content: T.rounds[k]?.[i]?.text || '（このラウンドは応答できませんでした）' });
+    msgs.push({ role:'user', content: chainInstr(T, i, k+1) });
+  }
+  return limitCacheMarks(clone(msgs));
+}
+function msgsPremise(T){
+  return [ { role:'system', content: CHAIR_SYS + '\n今は前提を確定させる段階。' },
+    { role:'user', content:`【仮定】\n${T.q}\n\n${threeAnswers(T,0)}\n\n3機の前提の提案を統合し、議論の土台になる前提を確定してください。共通する項目はまとめ、対立する項目は根拠の強い方を採るか、両立する形に整える。${presetOf(T).r0}\n\n# 出力形式\n## 確定した前提\n- 項目名: 内容\n（3〜7項目）\n\n## 統合の判断\n（どの提案をどう採用・統合したか2〜4行）` } ];
+}
+function msgsChainFinal(T){
+  const P = presetOf(T), sf = scoreFmt(T);
+  const last = T.chainN, prev = Math.max(1, last-1);
+  const block = r => UNITS.map((u,i)=>`### ${u.name}（${chainTitle(T,r)}）\n${T.rounds[r]?.[i]?.text || '（応答なし）'}`).join('\n\n');
+  return [ { role:'system', content: CHAIR_SYS },
+    { role:'user', content:`【仮定】\n${T.q}\n\n## 確定した前提\n${T.premise||'（なし）'}\n\n## ${chainTitle(T,prev)}\n${prev!==last ? block(prev) : ''}\n\n## ${chainTitle(T,last)}\n${block(last)}
+
+# 指示
+${T.chainN} ラウンドの議論を仕切り、最終結果をまとめてください。3機の支持が集まった案、根拠の強い案を優先して最大3つ残す。決着がつかなかった論点は、各機の立場を並べて示す。${sf ? `\n残った案は${P.axisDesc}の2軸でも評価する（3機の採点を参考に議長が決める）。` : ''}
+
+# 出力形式
+## 結論（ひとことで）
+（議論の結論を1〜2文）
+
+## 残った案
+1. **案名** — 説明（2〜3文）${sf ? `\n   評価: ${sf}` : ''}
+   支持: どの機が推したか
+（最大3つ）
+
+## 割れた論点
+（論点ごとに、何で割れたかを1〜2行）
+
+## 確定した前提
+（要約）
+
+最後に必ず次のJSONを付ける（コードブロック）：
+\`\`\`json
+{"remaining":["案名"],"splits":[{"issue":"論点","stances":{"MELCHIOR":"立場（20字以内）","BALTHASAR":"立場","CASPER":"立場"}}]}
+\`\`\`` } ];
+}
+async function chainRound(s, t, k, M){
+  const T = s.turns[t];
+  T.rounds[k] = [null,null,null]; T.curRound = k;
+  setPhase(`${chainTitle(T,k)}中…（${k}/${T.chainN}）`);
+  await Promise.all(UNITS.map((u,i)=> (k===0 || T.rounds[k-1]?.[i]) ? runUnit(s, t, k, i, chainMsgs(T, i, k), M) : Promise.resolve()));
+  checkAbort();
+  if(isViewing(s,t)) render();
+}
+async function runChain(s, t, M, priv, is){
+  const T = s.turns[t];
+  T.chainN = Math.max(2, Math.min(5, +cfg.chainRounds || 3));
+  T.preset = cfg.chainPreset || 'none';
+  T.rounds = []; T.roundStats = {};
+  T.anon = UNITS.map((u,i)=>{ const o = shuffle([0,1,2].filter(k=>k!==i)); return { A:o[0], B:o[1] }; });
+  // R0 前提
+  await chainRound(s, t, 0, M);
+  T.curRound = 0;
+  setPhase('R0 / 議長が前提を統合中…');
+  try{
+    const r = await chat(is, msgsPremise(T), txt=>{ T.premise = txt; if(isViewing(s,t) && activeTab==='sum') renderBody(); }, abortCtl.signal, 2000, M.effort, false);
+    addCost(T, r.usage, r.usedSpec);
+    T.premise = sectionOf(r.text, /確定した前提/) || r.text;
+    T.premiseFull = r.text;
+  }catch(e){ if(e.name==='AbortError') throw e; T.premise = ''; }
+  checkAbort();
+  // R1〜RN
+  for(let k=1; k<=T.chainN; k++){
+    if(T.rounds[k-1].filter(Boolean).length < 2){ toast('応答できたユニットが2機未満のため議論を打ち切りました'); T.chainN = k-1; break; }
+    T.debated = k >= 2;
+    await chainRound(s, t, k, M);
+  }
+  // 議長がまとめ
+  T.finals = UNITS.map((u,i)=>{ for(let r=T.chainN; r>=1; r--){ if(T.rounds[r]?.[i]) return T.rounds[r][i]; } return { error:true, model:T.models[i] }; });
+  T.curRound = 'final';
+  setPhase('最終 / 議長がまとめ中…');
+  T.synth = { text:'', model:is.model, streaming:true };
+  try{
+    const r = await chat(is, msgsChainFinal(T), txt=>{ T.synth.text = txt; if(isViewing(s,t) && activeTab==='sum') renderBody(); }, abortCtl.signal, 3500, M.effort, false);
+    T.synth.text = r.text; T.synth.model = r.usedSpec.model; addCost(T, r.usage, r.usedSpec);
+    const jm = r.text.match(/```json\s*([\s\S]*?)```/) ; const j = jm ? (()=>{ try{ return JSON.parse(jm[1]); }catch(e){ return jsonFrom(jm[1]); } })() : jsonFrom(r.text.slice(r.text.lastIndexOf('{"remaining')));
+    T.chainResult = { remaining: j?.remaining || [], splits: j?.splits || [] };
+    T.one = oneLiner(r.text);
+  }catch(e){ if(e.name==='AbortError') throw e; T.synth.text = 'まとめに失敗しました: ' + e.message; T.chainResult = { remaining:[], splits:[] }; }
+  T.synth.streaming = false;
+  T.curRound = null;
+  computeStats(T);
 }
 
 /* ---------- タイプ別フロー（第2段階） ---------- */
@@ -1320,9 +1515,14 @@ function computeStats(T){
     const best = T.draftScores.map((d,i)=>({i, a:d.avg})).filter(x=>x.a!=null).sort((a,b)=>b.a-a.a)[0];
     T.tally = { cls:'info', big:'完成稿', sub: best ? `下書きの最高評価: ${UNITS[best.i].name}（${r1(best.a)}点）` : '3機の下書きを統合' };
   }
+  else if(ty==='chain'){
+    const R = T.chainResult || { remaining:[], splits:[] };
+    T.tally = { cls:'idea', big:'残った案', sub:`${T.chainN||0}ラウンド・残案${R.remaining.length}・割れた論点${R.splits.length}` };
+  }
   if(T.tally && T.one) T.tally.one = T.one;
 }
 function phaseDone(T){
+  if(T.type==='chain') return `連続議論 完了（${T.chainN||0}ラウンド）`;
   const ty = TYPES[T.type]?.label || '';
   if(T.type==='decision') return T.debated ? '審議完了（討論あり）' : (T.agree?.agree ? '審議完了（初回で一致したため討論省略）' : '審議完了');
   if(T.type==='research') return T.debated ? '調査完了（争点を検証）' : '調査完了（争点なし）';
@@ -1363,8 +1563,15 @@ async function runUnit(s, t, r, i, messages, M){
   }
 }
 function addCost(T, u, spec){
+  let c = 0;
   if(spec?.provider==='google'){ T.freeCalls = (T.freeCalls||0) + 1; }
-  else if(u && typeof u.cost==='number') T.cost += u.cost;
+  else if(u && typeof u.cost==='number'){ c = u.cost; T.cost += c; }
+  if(T.curRound != null){
+    T.roundStats = T.roundStats || {};
+    const k = String(T.curRound), r = T.roundStats[k] = T.roundStats[k] || { cost:0, tin:0, tout:0, calls:0, free:0 };
+    r.cost += c; r.calls++; if(spec?.provider==='google') r.free++;
+    if(u){ r.tin += (u.prompt_tokens ?? u.promptTokenCount ?? 0); r.tout += (u.completion_tokens ?? u.candidatesTokenCount ?? 0); }
+  }
   renderCost();
 }
 function stopRun(){ abortCtl && abortCtl.abort(); }
@@ -1399,13 +1606,19 @@ function estimate(isFollow){
   const p0 = priceOf(intSpec(mode, specs)) || { pin:0, pout:0 };
   const syn = 9000*p0.pin + 2500*p0.pout; lo += syn; hi += syn + 6000*p0.pin + 800*p0.pout;
   if(sumOn && textTok){ const pc = priceOf(cheapSpec(cfg.priv)) || {pin:0,pout:0}; const sc = textTok*pc.pin + 5000*pc.pout; lo += sc; hi += sc; }
+  if(typeSel==='chain' && !isFollow){
+    const N = +cfg.chainRounds || 3, round = lo - syn;   // 1ラウンド（3機）ぶん
+    const per = []; for(let k=0; k<=N; k++) per.push(round * (1 + k*0.35));
+    const tot = per.reduce((a,b)=>a+b,0) + syn*1.6;
+    return { lo: tot, hi: tot*1.5, inTok, unknown, per };
+  }
   return { lo, hi, inTok, unknown };
 }
 function renderEst(){
   document.querySelectorAll('.ctrl').forEach(el=>{
     const e = estimate(el.dataset.slot==='follow');
     const box = el.querySelector('.est'); if(!box) return;
-    box.textContent = e ? `予想費用: 約${yen(e.lo)}〜${yen(e.hi)}円（入力 約${e.inTok.toLocaleString()}トークン）${e.unknown?'・一部モデルの料金不明':''}` : '';
+    box.textContent = e ? `予想費用: 約${yen(e.lo)}〜${yen(e.hi)}円（入力 約${e.inTok.toLocaleString()}トークン）${e.per?`／ラウンドごと 約${e.per.map(x=>yen(x)).join('・')}円＋まとめ`:''}${e.unknown?'・一部モデルの料金不明':''}` : '';
   });
 }
 
@@ -1422,6 +1635,7 @@ function setMode(m){ cfg.mode = m; save('magi_cfg3', cfg); renderCtrl(); }
 function setOpt(k, b){ cfg[k] = b; save('magi_cfg3', cfg); renderCtrl(); }
 function setSum(b){ sumOn = b; sumTouched = true; renderCtrl(); }
 function setType(k){ typeSel = k; renderCtrl(); }
+function setChain(k, v){ cfg[k] = v; save('magi_cfg3', cfg); renderCtrl(); }
 function renderCtrl(){
   const specs = UNITS.map((u,i)=>unitSpec(i, cfg.mode, cfg.web, cfg.priv));
   const names = specs.map(sp=> (sp.provider==='google' ? '🆓' : '') + sp.model.split('/').pop()).join(' / ');
@@ -1444,6 +1658,10 @@ function renderCtrl(){
       <button class="btn small" onclick="$('fileIn').click()">📎 ファイル添付</button>
       ${pending.map(d=>`<span class="chip">${d.kind==='image'?'🖼':'📄'} <span class="nm">${esc(d.name)}</span> <span class="muted">${d.tokens.toLocaleString()}</span><span class="x" onclick="removePending('${d.id}')">✕</span></span>`).join('')}
     </div>
+    ${typeSel==='chain' ? `<div class="opts">
+      <select style="flex:1;min-width:150px;padding:7px 10px;font-size:14px" onchange="setChain('chainPreset', this.value)">${Object.entries(PRESETS).map(([k,v])=>`<option value="${k}" ${cfg.chainPreset===k?'selected':''}>${v.label}</option>`).join('')}</select>
+      <select style="flex:0 0 120px;padding:7px 10px;font-size:14px" onchange="setChain('chainRounds', +this.value)">${[2,3,4,5].map(n=>`<option value="${n}" ${+cfg.chainRounds===n?'selected':''}>${n}ラウンド</option>`).join('')}</select>
+    </div><div class="muted" style="margin-top:4px">仮定を1行入力 → R0前提 → R1案 → 反論・修正 → ${+cfg.chainRounds>=3?'最終ラウンドで収束':'議長がまとめ'}${cfg.chainPreset==='kuso'?'。各案を「生物学的に筋が通るか」「映像映えするか」で評価':''}</div>` : ''}
     ${textTok ? `<label class="chk" style="margin-top:8px"><input type="checkbox" ${sumOn?'checked':''} onchange="setSum(this.checked)">要約してから審議（長い資料が安くなる・細部は落ちる）</label>` : ''}
     ${freeWarn ? `<div class="warn">CASPERがGoogle無料枠で動きます。添付内容がGoogleの改善に使われるので、個人的・機密な資料なら「🔒機密」をON</div>` : ''}
     <div class="muted" style="margin-top:8px">${esc(names)}${typeSel!=='auto'?`・${TYPES[typeSel].label}型で審議`:''}</div>
@@ -1483,6 +1701,7 @@ function latestFor(T, i){
 }
 function unitLabel(T, i, L){
   const x = L.x;
+  if(T.type==='chain') return { vd: `R${L.r}`, cls:'' };
   if(T.type==='decision') return { vd: x.verdict||'', cls:'v-'+(x.verdict||'') };
   if(T.type==='evaluation'){ const tot = T.totals?.[i] ?? x.total; return { vd: tot!=null ? `${r1(tot)}/10` : '', cls:'' }; }
   if(T.type==='ideation'){ const n = (T.ideas?.[i]||parseIdeas(T.rounds[0][i]?.text)).length; return { vd: L.r===1 ? '採点済' : `${n}案`, cls:'' }; }
@@ -1497,8 +1716,8 @@ function renderTriad(){
     let st='待機', vd='', cls='', chg='';
     if(L){
       if(!L.x){ st='応答なし'; cls='err'; }
-      else if(L.x.streaming){ st = (L.r===0?'独立回答中…':`${TYPES[T.type]?.r2||'第2段階'}中…`); cls='thinking'; }
-      else { const lb = unitLabel(T, i, L); vd = lb.vd; cls = lb.cls; st = (L.r===0?'初回':'第2段階') + (L.x.conf!=null ? ` / 確信${L.x.conf}` : ''); if(L.r===1 && L.x.changed) chg = '考え変更'; }
+      else if(L.x.streaming){ st = T.type==='chain' ? `${chainTitle(T,L.r).split(' ')[1]}中…` : (L.r===0?'独立回答中…':`${TYPES[T.type]?.r2||'第2段階'}中…`); cls='thinking'; }
+      else { const lb = unitLabel(T, i, L); vd = lb.vd; cls = lb.cls; st = (T.type==='chain' ? chainTitle(T,L.r).split(' ')[1] : (L.r===0?'初回':'第2段階')) + (L.x.conf!=null ? ` / 確信${L.x.conf}` : ''); if(L.r===1 && L.x.changed) chg = '考え変更'; }
     }
     return `<div class="unit ${u.key} ${cls}" onclick="setTab('${u.key}')">${chg?`<div class="chg">${chg}</div>`:''}
       <div class="nm">${u.name}</div><div class="md">${esc((T.models[i]||'').split('/').pop())}</div>
@@ -1519,7 +1738,7 @@ const SEC_RULES = [
   [/各ユニット|立場|推す/, 'sec-units'], [/少数|残る論点|食い違|割れた/, 'sec-minor'], [/結論/, 'sec-concl'],
 ];
 function richText(text, color){
-  let t = (text||'').replace(/\r/g,'');
+  let t = (text||'').replace(/\r/g,'').replace(/```json[\s\S]*?(```|$)/g,'').replace(/\{"remaining"[\s\S]*$/,'');
   const meta = parseOut(t), fin = parseFinal(t);
   t = t.replace(/^\s*最終判定\s*[:：].*$/m, '')
        .replace(/^\s*\**\s*(判定|確信度|変更理由|変更)\s*[:：].*$/gm, '')
@@ -1543,6 +1762,24 @@ function richText(text, color){
   return `<div style="--uc:${color||'var(--accent)'}">${top}${html}${bottom}</div>`;
 }
 function extrasHtml(T){
+  if(T.type==='chain'){
+    let h = '';
+    if(T.premiseFull || T.premise) h += `<details class="round"><summary><span>🧱 確定した前提（R0）</span><span class="muted">タップ</span></summary><div class="inner">${richText(T.premiseFull || T.premise)}</div></details>`;
+    const sp = T.chainResult?.splits || [];
+    if(sp.length){
+      const head = `<tr><th>割れた論点</th>${UNITS.map(u=>`<th style="color:${u.color}">${u.name.split('-')[0].slice(0,4)}</th>`).join('')}</tr>`;
+      const rows = sp.map(x=>`<tr><td><b>${esc(x.issue)}</b></td>${UNITS.map(u=>{ const st = x.stances?.[u.name.split('-')[0]] ?? x.stances?.[u.name] ?? '-'; return `<td style="text-align:left;font-size:12px">${esc(st)}</td>`; }).join('')}</tr>`).join('');
+      h += `<div class="card"><div class="muted">論点の割れ方（機ごとの立場）</div><table class="score">${head}${rows}</table></div>`;
+    }
+    const st = T.roundStats || {};
+    const keys = Object.keys(st).sort((a,b)=> (a==='final')-(b==='final') || (+a)-(+b));
+    if(keys.length){
+      const rows = keys.map(k=>{ const r = st[k]; const nm = k==='final' ? '最終まとめ' : chainTitle(T, +k);
+        return `<tr><td>${esc(nm)}</td><td>${(r.tin/1000).toFixed(1)}k / ${(r.tout/1000).toFixed(1)}k</td><td>${r.cost ? yen(r.cost)+'円' : (r.free ? '無料枠' : '-')}</td></tr>`; }).join('');
+      h += `<details class="round"><summary><span>💴 ラウンドごとのコスト</span><span class="muted">合計 約${yen(T.cost)}円</span></summary><div class="inner"><table class="score"><tr><th>ラウンド</th><th>入力/出力トークン</th><th>費用</th></tr>${rows}</table></div></details>`;
+    }
+    return h;
+  }
   if(T.type==='evaluation' && T.scoreTable && T.axes?.length){
     const head = `<tr><th>評価軸</th>${UNITS.map(u=>`<th style="color:${u.color}">${u.name.split('-')[0].slice(0,4)}</th>`).join('')}<th>平均</th></tr>`;
     const rows = T.axes.map(a=>{ const r = T.scoreTable[a.name]; const cls = r.spread==null ? '' : r.spread>=3 ? 'split' : r.spread<=1 ? 'hi' : '';
@@ -1584,8 +1821,8 @@ function renderBody(){
   const i = UNITS.findIndex(u=>u.key===activeTab), u = UNITS[i];
   const html = T.rounds.map((round, r)=>{
     const x = round?.[i]; const err = T.errors?.[r+'-'+i];
-    let title = r===0 ? '01 独立回答（初回・確定）' : `04 ${TYPES[T.type]?.r2||'第2段階'}`;
-    if(r===1 && T.anon?.[i]) title += `<br><span class="muted">機A=${UNITS[T.anon[i].A].name} / 機B=${UNITS[T.anon[i].B].name}</span>`;
+    let title = T.type==='chain' ? chainTitle(T, r) : (r===0 ? '01 独立回答（初回・確定）' : `04 ${TYPES[T.type]?.r2||'第2段階'}`);
+    if((r===1 && T.type!=='chain' || r>=2 && T.type==='chain') && T.anon?.[i]) title += `<br><span class="muted">機A=${UNITS[T.anon[i].A].name} / 機B=${UNITS[T.anon[i].B].name}</span>`;
     const lb = x && !x.streaming ? unitLabel(T, i, { x, r }).vd : '';
     const meta = x && !x.streaming ? `${lb}${x.conf!=null?' / 確信'+x.conf:''}${x.changed?' / 考え変更':''}` : (x ? '生成中…' : (err ? '応答なし' : '待機'));
     const open = r===T.rounds.length-1 ? 'open' : '';
