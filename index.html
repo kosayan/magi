@@ -281,7 +281,7 @@ table.score td.hi{color:var(--ok);font-weight:800} table.score td.split{color:va
 /* =====================================================================
    定義
    ===================================================================== */
-const APP_VERSION = 'v4.9';
+const APP_VERSION = 'v4.10';
 const NEUTRAL = (n, name) => `あなたは合議制AI「MAGI」の第${n}ユニット ${name}。他の2機と対等な、独立した判断者である。特定の役割や立場は持たず、自分の知識と推論で最も妥当と考える答えを出す。事実と推測をはっきり区別し、不確かな点は不確かと明言する。`;
 const UNITS = [
   { key:'m', name:'MELCHIOR-1', jp:'メルキオール', vendor:'anthropic', color:'#4fc3f7', persona: NEUTRAL(1,'MELCHIOR') },
@@ -1573,18 +1573,64 @@ async function runTimeline(s, t, M, priv, is){
   T.preset = cfg.chainPreset || 'none';
   T.rounds = []; T.roundStats = {}; T.roundTitles = ['R0 世界設定']; T.chainN = 0;
   T.anon = UNITS.map((u,i)=>{ const o = shuffle([0,1,2].filter(k=>k!==i)); return { A:o[0], B:o[1] }; });
+  await runR0(s, t, M, is);
+  if(!T.timeline.auto){ T.timeline.waiting = true; T.timeline.stage = 'r0'; T.curRound = null; computeStats(T); if(isViewing(s,t)) render(); return; }
+  await runEras(s, t, M, is, 0);
+}
+/** R0：3機が世界設定を提案 → 議長が統合 */
+async function runR0(s, t, M, is){
+  const T = s.turns[t];
   await chainRound(s, t, 0, M);
   T.curRound = 0; setPhase('R0 / 議長が世界設定を統合中…');
   try{
     const r = await chat(is, msgsPremise(T), txt=>{ T.premise = txt; if(isViewing(s,t) && activeTab==='sum') renderBody(); }, abortCtl.signal, 2500, M.effort, false);
     addCost(T, r.usage, r.usedSpec);
-    T.premise = sectionOf(r.text, /確定した前提/) || r.text; T.premiseFull = r.text;
+    setPremise(T, r.text);
   }catch(e){ if(e.name==='AbortError') throw e; T.premise = ''; }
-  const gm = (T.premiseFull||'').match(/世代時間\s*[:：]\s*約?\s*([\d.,]+)\s*年/);
-  if(gm && +gm[1].replace(/,/g,'') > 0){ T.timeline.genTime = +gm[1].replace(/,/g,''); T.timeline.genFrom = 'R0'; }
-  T.timeline.eras = makeEras(unit, text, T.timeline.genTime);
   checkAbort();
-  await runEras(s, t, M, is, 0);
+}
+/** 世界設定テキストを反映（世代時間の再換算も） */
+function setPremise(T, text){
+  const tl = T.timeline;
+  T.premiseFull = text; T.premise = sectionOf(text, /確定した前提/) || text;
+  const gm = (text||'').match(/世代時間\s*[:：]\s*約?\s*([\d.,]+)\s*年/);
+  if(gm && +gm[1].replace(/,/g,'') > 0){ tl.genTime = +gm[1].replace(/,/g,''); tl.genFrom = 'R0'; }
+  else { tl.genTime = +cfg.tlGenTime || tl.genTime || 25; tl.genFrom = ''; }
+  tl.eras = makeEras(tl.unit, tl.text, tl.genTime);
+}
+/** 停止中の時系列を再開する共通処理 */
+async function resumeTL(work, onAbort){
+  const s = current, t = viewTurn, T = s.turns[t], tl = T.timeline;
+  T.status = 'running'; tl.waiting = false;
+  abortCtl = new AbortController(); setRunning(true); render();
+  try{
+    await Promise.all([fetchOR(), fetchG()]);
+    await work(s, t, T, MODES[T.mode] || MODES.eco, intSpec(T.mode, T.specs));
+    T.status = tl.waiting ? 'waiting' : 'done';
+  }catch(e){
+    if(e.name==='AbortError'){ onAbort && onAbort(); tl.waiting = true; T.status = 'waiting'; }
+    else { T.status = 'error'; setPhase('エラー: ' + e.message); }
+  }finally{ T.curRound = null; abortCtl = null; setRunning(false); computeStats(T); await saveSession(s); render(); }
+}
+/** 「この世界設定で進める」 */
+function proceedR0(){
+  const T = current?.turns[viewTurn], tl = T?.timeline;
+  if(!tl?.waiting || tl.stage!=='r0' || abortCtl) return;
+  const edited = $('tl-premise')?.value.trim();
+  if(!edited) return toast('世界設定が空です');
+  if(edited !== (T.premiseFull||'').trim()){ setPremise(T, edited); T.premiseEdited = true; }
+  if(!tl.eras?.length) return toast('時代の区切りが読み取れません');
+  tl.stage = 'eras';
+  return resumeTL((s,t,T,M,is)=> runEras(s, t, M, is, 0), ()=>{ tl.stage = 'r0'; tl.steps = []; });
+}
+/** 「R0を回し直す」 */
+function redoR0(){
+  const T = current?.turns[viewTurn], tl = T?.timeline;
+  if(!tl?.waiting || tl.stage!=='r0' || abortCtl) return;
+  const backup = { premise:T.premise, premiseFull:T.premiseFull, genTime:tl.genTime, genFrom:tl.genFrom, eras:tl.eras, r0:T.rounds[0] };
+  T.premiseEdited = false;
+  return resumeTL(async (s,t,T,M,is)=>{ await runR0(s, t, M, is); tl.waiting = true; tl.stage = 'r0'; },
+    ()=>{ Object.assign(T, { premise:backup.premise, premiseFull:backup.premiseFull }); Object.assign(tl, { genTime:backup.genTime, genFrom:backup.genFrom, eras:backup.eras }); T.rounds[0] = backup.r0; tl.stage = 'r0'; });
 }
 async function runEras(s, t, M, is, from){
   const T = s.turns[t], tl = T.timeline;
@@ -1628,7 +1674,7 @@ async function runEras(s, t, M, is, from){
 }
 async function chooseCand(n){
   const s = current, t = viewTurn, T = s.turns[t], tl = T.timeline;
-  if(!tl?.waiting || abortCtl) return;
+  if(!tl?.waiting || tl.stage==='r0' || abortCtl) return;
   tl.steps[tl.cur].chosen = n; tl.waiting = false; T.status = 'running';
   abortCtl = new AbortController(); setRunning(true); render();
   try{
@@ -1808,7 +1854,8 @@ function computeStats(T){
   }
   else if(ty==='chain' && T.timeline){
     const tl = T.timeline, st = tl.steps[tl.cur];
-    if(tl.waiting) T.tally = { cls:'cond', big:'選択待ち', sub:`${st?.label||''}の候補から1つ選んでください` };
+    if(tl.waiting && tl.stage==='r0') T.tally = { cls:'cond', big:'世界設定の確認', sub:'内容を確認・編集して「この世界設定で進める」を押してください' };
+    else if(tl.waiting) T.tally = { cls:'cond', big:'選択待ち', sub:`${st?.label||''}の候補から1つ選んでください` };
     else { const last = chosenOf(tl.steps[tl.steps.length-1]); T.tally = { cls:'idea', big:'最終形態', sub:`${tl.eras?.length||0}時代・${last?.name||'-'}` }; }
   }
   else if(ty==='chain'){
@@ -1818,6 +1865,7 @@ function computeStats(T){
   if(T.tally && T.one) T.tally.one = T.one;
 }
 function phaseDone(T){
+  if(T.type==='chain' && T.timeline && T.timeline.waiting && T.timeline.stage==='r0') return '停止中：世界設定を確認してください';
   if(T.type==='chain' && T.timeline) return T.timeline.waiting ? `選択待ち：${T.timeline.steps[T.timeline.cur]?.label||''}の候補から1つ選んでください` : `時系列 完了（${T.timeline.eras?.length||0}時代）`;
   if(T.type==='chain') return `連続議論 完了（${T.chainN||0}ラウンド）`;
   const ty = TYPES[T.type]?.label || '';
@@ -2088,7 +2136,16 @@ function extrasHtml(T){
   if(T.type==='chain' && T.timeline){
     const tl = T.timeline, P = presetOf(T);
     let h = '';
-    if(T.premiseFull || T.premise) h += `<details class="round"><summary><span>🌍 世界設定（R0）</span><span class="muted">${tl.genFrom==='R0' ? `世代時間 ${tl.genTime}年` : 'タップ'}</span></summary><div class="inner">${richText(T.premiseFull || T.premise)}</div></details>`;
+    if(tl.waiting && tl.stage==='r0'){
+      h += `<div class="card" style="border-color:var(--cond)"><b>🌍 世界設定（R0）を確認してください</b>
+        <div class="muted" style="margin:4px 0 8px">そのまま進めても、書き換えてから進めてもOK。「世代時間: N年」の行を書き換えると、時代の換算も変わります。</div>
+        <textarea id="tl-premise" style="min-height:260px;font-size:14px;line-height:1.6">${esc(T.premiseFull || T.premise || '')}</textarea>
+        <div class="muted" style="margin-top:6px">時代: ${esc((tl.eras||[]).map(e=>e.label).join(' → '))}（世代時間 ${tl.genTime}年${tl.genFrom==='R0'?'・R0で決定':''}）</div>
+        <button class="btn primary" style="width:100%;margin-top:10px" onclick="proceedR0()">この世界設定で進める</button>
+        <button class="btn" style="width:100%;margin-top:8px" onclick="redoR0()">🔄 R0を回し直す</button>
+        <div class="muted" style="margin-top:6px">3機の世界設定の提案は、各ユニットのタブの「R0」で見られます。</div></div>`;
+    }
+    else if(T.premiseFull || T.premise) h += `<details class="round"><summary><span>🌍 世界設定（R0${T.premiseEdited?'・編集済み':''}）</span><span class="muted">${tl.genFrom==='R0' ? `世代時間 ${tl.genTime}年` : 'タップ'}</span></summary><div class="inner">${richText(T.premiseFull || T.premise)}</div></details>`;
     const scoreLine = x => x.scores && Object.keys(x.scores).length ? `<div class="muted" style="margin-top:2px">${Object.entries(x.scores).map(([k,v])=>`${esc(k)} <b style="color:var(--strong)">${esc(v)}</b>`).join('・')}${x.total!=null?` → 総合 <b style="color:var(--ok)">${r1(x.total)}</b>${P.totalMin?'（低い方）':''}`:''}</div>` : '';
     const card = (x, e, n, mode) => `
       <div class="sec ${mode==='chosen'?'sec-final':'sec-plain'}" style="margin-top:8px">
