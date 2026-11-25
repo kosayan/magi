@@ -279,7 +279,7 @@ table.score td.hi{color:var(--ok);font-weight:800} table.score td.split{color:va
 /* =====================================================================
    定義
    ===================================================================== */
-const APP_VERSION = 'v4.0';
+const APP_VERSION = 'v4.1';
 const NEUTRAL = (n, name) => `あなたは合議制AI「MAGI」の第${n}ユニット ${name}。他の2機と対等な、独立した判断者である。特定の役割や立場は持たず、自分の知識と推論で最も妥当と考える答えを出す。事実と推測をはっきり区別し、不確かな点は不確かと明言する。`;
 const UNITS = [
   { key:'m', name:'MELCHIOR-1', jp:'メルキオール', vendor:'anthropic', color:'#4fc3f7', persona: NEUTRAL(1,'MELCHIOR') },
@@ -649,6 +649,16 @@ async function chat(spec, messages, onDelta, signal, maxTokens, effort, web){
   try{
     return { ...(await chatRaw(spec, messages, onDelta, signal, maxTokens, effort, web)), usedSpec:spec };
   }catch(e){
+    // 残高が少ないと「max_tokensぶん払えない」で402になる → 払える範囲に縮めて1回だけ再試行
+    if(e.status===402 && spec.provider==='or'){
+      const m = e.message.match(/afford\s+(\d+)/);
+      const can = m ? +m[1] : 0;
+      if(can >= 600 && can < maxTokens){
+        toast(`残高が少ないため、回答の長さを${can}トークンに縮めて再試行`);
+        return { ...(await chatRaw(spec, messages, onDelta, signal, can - 100, effort, web)), usedSpec:spec };
+      }
+      throw e;
+    }
     if(e.name==='AbortError' || spec.provider!=='google') throw e;
     const fb = { provider:'or', model:spec.orModel, orModel:spec.orModel };
     googleBlocked = true;
