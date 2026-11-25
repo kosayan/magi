@@ -239,6 +239,8 @@ table.score td.hi{color:var(--ok);font-weight:800} table.score td.split{color:va
 
     <label>Google AI Studio APIキー（任意・CASPERを無料枠で動かす）</label>
     <input id="s-gkey" type="password" placeholder="AQ.… または AIza…" autocomplete="off">
+    <button class="btn small" style="margin-top:6px" onclick="testGoogle()">🔌 Google無料枠の接続テスト</button>
+    <div id="g-test" class="muted" style="white-space:pre-wrap;margin-top:4px"></div>
     <div class="muted"><a href="https://aistudio.google.com/apikey" style="color:var(--m)">aistudio.google.com/apikey</a> で発行。無料枠は入力内容がGoogleの改善に使われます。「機密」にチェックした審議では無料枠を使いません。</div>
 
     <label>討論</label>
@@ -279,7 +281,7 @@ table.score td.hi{color:var(--ok);font-weight:800} table.score td.split{color:va
 /* =====================================================================
    定義
    ===================================================================== */
-const APP_VERSION = 'v4.2';
+const APP_VERSION = 'v4.3';
 const NEUTRAL = (n, name) => `あなたは合議制AI「MAGI」の第${n}ユニット ${name}。他の2機と対等な、独立した判断者である。特定の役割や立場は持たず、自分の知識と推論で最も妥当と考える答えを出す。事実と推測をはっきり区別し、不確かな点は不確かと明言する。`;
 const UNITS = [
   { key:'m', name:'MELCHIOR-1', jp:'メルキオール', vendor:'anthropic', color:'#4fc3f7', persona: NEUTRAL(1,'MELCHIOR') },
@@ -508,7 +510,7 @@ function unitSpec(i, mode, web, priv){
   const orModel = (v==='auto' || !v.includes('/')) ? pickOR(mode, vendor) : v;
   if(v !== 'auto' && v.includes('/')) return { provider:'or', model:v, orModel:v };
   if(vendor==='google' && cfg.gkey && !web && !priv){
-    const gm = v==='auto' ? pickG(mode) : v;
+    const gm = v==='auto' ? ((mode==='eco' && cfg.gFree) || pickG(mode)) : v;
     if(gm) return { provider:'google', model:gm, orModel };
   }
   return { provider:'or', model:orModel, orModel };
@@ -521,7 +523,7 @@ function intSpec(mode, specs){
 }
 /** 安い補助モデル（タイプ判定・一致判定・要約） */
 function cheapSpec(priv){
-  if(cfg.gkey && !priv){ const g = pickG('eco'); if(g) return { provider:'google', model:g, orModel:pickOR('eco','google') }; }
+  if(cfg.gkey && !priv){ const g = cfg.gFree || pickG('eco'); if(g) return { provider:'google', model:g, orModel:pickOR('eco','google') }; }
   const m = pickOR('eco','google'); return { provider:'or', model:m, orModel:m };
 }
 function priceOf(spec){
@@ -701,7 +703,8 @@ async function chat(spec, messages, onDelta, signal, maxTokens, effort, web){
     if(e.name==='AbortError' || spec.provider!=='google') throw e;
     const fb = { provider:'or', model:spec.orModel, orModel:spec.orModel };
     googleBlocked = true;
-    toast(`Google無料枠が使えず、OpenRouter経由に切替（${e.message.slice(0,40)}）`);
+    cfg.gLastErr = `${new Date().toLocaleString()} ${spec.model}: ${e.message.slice(0,300)}`; save('magi_cfg3', cfg);
+    toast(`Google無料枠が使えずOpenRouter経由に切替。⚙設定の「接続テスト」で原因を確認できます（${e.message.slice(0,60)}）`);
     return { ...(await chatRaw(fb, messages, onDelta, signal, maxTokens, effort, web)), usedSpec:fb };
   }
 }
@@ -1701,11 +1704,46 @@ function saveSettings(){
   cfg.intModel = $('s-int').value.trim() || 'auto';
   ['eco','max'].forEach(mode=> UNITS.forEach((u,i)=>{ cfg.models[mode][i] = $(`s-${mode}-${i}`).value.trim() || 'auto'; }));
   cfg.personas = UNITS.map((u,i)=> $(`s-p-${i}`).value.trim() || u.persona);
-  if(gkeyChanged){ gModels = []; fetchG().then(renderCtrl); }
+  if(gkeyChanged){ gModels = []; cfg.gFree = ''; fetchG().then(renderCtrl); }
   save('magi_cfg3', cfg); closeSettings(); renderCtrl(); toast('保存しました');
 }
 function resetPersonas(){ UNITS.forEach((u,i)=>{ $(`s-p-${i}`).value = u.persona; }); }
 function closeSettings(){ $('settings').classList.add('hidden'); }
+
+/* ---------- Google無料枠の接続テスト ---------- */
+async function testGoogle(){
+  const key = $('s-gkey').value.trim(), out = $('g-test');
+  if(!key){ out.textContent = 'キーを入力してください'; return; }
+  const log = m => { out.textContent += m + '\n'; };
+  out.textContent = '';
+  if(cfg.gLastErr) log('前回のエラー: ' + cfg.gLastErr + '\n');
+  log(`キー形式: ${key.slice(0,4)}…（${key.length}文字）`);
+  let names = [];
+  try{
+    const r = await fetch('https://generativelanguage.googleapis.com/v1beta/models?pageSize=200', { headers:{ 'x-goog-api-key': key } });
+    const t = await r.text();
+    if(!r.ok){ log(`× モデル一覧の取得に失敗（HTTP ${r.status}）\n${t.slice(0,300)}`); return; }
+    names = (JSON.parse(t).models||[]).filter(m=>(m.supportedGenerationMethods||[]).includes('generateContent')).map(m=>m.name.replace(/^models\//,''));
+    log(`○ キーは有効（使えるモデル ${names.length}個）`);
+  }catch(e){ log('× 通信エラー: ' + e.message); return; }
+  const cands = names.filter(n => /^gemini-\d/.test(n) && /flash/.test(n) && !BAD_COMMON.test(n) && !/-\d{3}$/.test(n))
+    .sort((a,b)=> verOf(b)-verOf(a) || (/lite/.test(a)?1:0)-(/lite/.test(b)?1:0) || a.length-b.length).slice(0,5);
+  if(!cands.length){ log('× 無料枠向けのFlash系モデルが見つかりません'); return; }
+  for(const m of cands){
+    try{
+      const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${m}:generateContent`, { method:'POST', headers:{ 'x-goog-api-key': key, 'Content-Type':'application/json' }, body: JSON.stringify({ contents:[{ role:'user', parts:[{ text:'「OK」とだけ返して' }] }], generationConfig:{ maxOutputTokens:20 } }) });
+      const t = await r.text();
+      if(r.ok){
+        log(`○ ${m} で無料枠が使えます → CASPER（節約）に設定しました`);
+        cfg.gkey = key; cfg.gFree = m; cfg.gLastErr = ''; save('magi_cfg3', cfg); gModels = names; updResolved(); renderCtrl();
+        return;
+      }
+      let msg = t; try{ msg = JSON.parse(t).error?.message || t; }catch(e){}
+      log(`× ${m}: HTTP ${r.status} ${msg.slice(0,160)}`);
+    }catch(e){ log(`× ${m}: ${e.message}`); }
+  }
+  log('\nどのモデルも使えませんでした。上のエラー文をそのまま送ってもらえれば原因を調べます。');
+}
 
 /* ---------- アプリ更新 ---------- */
 async function hardUpdate(){
