@@ -281,7 +281,7 @@ table.score td.hi{color:var(--ok);font-weight:800} table.score td.split{color:va
 /* =====================================================================
    定義
    ===================================================================== */
-const APP_VERSION = 'v4.5';
+const APP_VERSION = 'v4.6';
 const NEUTRAL = (n, name) => `あなたは合議制AI「MAGI」の第${n}ユニット ${name}。他の2機と対等な、独立した判断者である。特定の役割や立場は持たず、自分の知識と推論で最も妥当と考える答えを出す。事実と推測をはっきり区別し、不確かな点は不確かと明言する。`;
 const UNITS = [
   { key:'m', name:'MELCHIOR-1', jp:'メルキオール', vendor:'anthropic', color:'#4fc3f7', persona: NEUTRAL(1,'MELCHIOR') },
@@ -436,6 +436,16 @@ function md(s){
 function estTokens(t){ if(!t) return 0; let na=0; for(const ch of t){ if(ch.charCodeAt(0)>127) na++; } return Math.ceil(na*1.05 + (t.length-na)/4); }
 function yen(usd){ const y = usd*YEN; return y < 10 ? y.toFixed(1) : Math.round(y).toLocaleString(); }
 function jsonFrom(text){ const m = (text||'').match(/\{[\s\S]*\}/); if(!m) return null; try{ return JSON.parse(m[0]); }catch(e){ return null; } }
+function parseLoose(str){
+  if(!str) return null;
+  try{ return JSON.parse(str); }catch(e){}
+  let out = '', inStr = false, esc = false;          // 文字列内の生の改行を \n に直す
+  for(const ch of str){
+    if(inStr){ if(esc){ esc=false; out+=ch; continue; } if(ch==='\\'){ esc=true; out+=ch; continue; } if(ch==='"'){ inStr=false; out+=ch; continue; } if(ch==='\n'){ out+='\\n'; continue; } if(ch==='\r') continue; out+=ch; }
+    else { if(ch==='"') inStr=true; out+=ch; }
+  }
+  try{ return JSON.parse(out.replace(/,\s*([}\]])/g,'$1')); }catch(e){ return null; }
+}
 function avg(a){ return a.length ? a.reduce((x,y)=>x+y,0)/a.length : null; }
 function r1(x){ return x==null ? '-' : (Math.round(x*10)/10).toString(); }
 
@@ -1332,7 +1342,7 @@ function msgsChainFinal(T){
     { role:'user', content:`【仮定】\n${T.q}\n\n## 確定した前提\n${T.premise||'（なし）'}\n\n## ${chainTitle(T,prev)}\n${prev!==last ? block(prev) : ''}\n\n## ${chainTitle(T,last)}\n${block(last)}
 
 # 指示
-${T.chainN} ラウンドの議論を仕切り、最終結果をまとめてください。3機の支持が集まった案、根拠の強い案を優先して最大3つ残す。決着がつかなかった論点は、各機の立場を並べて示す。${sf ? `\n残った案は${P.axisDesc}の2軸でも評価する（3機の採点を参考に議長が決める）。` : ''}
+${T.chainN} ラウンドの議論を仕切り、最終結果をまとめてください。各案の説明は簡潔に（最後のJSONまで必ず書き切ること）。3機の支持が集まった案、根拠の強い案を優先して最大3つ残す。決着がつかなかった論点は、各機の立場を並べて示す。${sf ? `\n残った案は${P.axisDesc}の2軸でも評価する（3機の採点を参考に議長が決める）。` : ''}
 
 # 出力形式
 ## 結論（ひとことで）
@@ -1353,6 +1363,50 @@ ${T.chainN} ラウンドの議論を仕切り、最終結果をまとめてく�
 \`\`\`json
 {"remaining":["案名"],"ideas":[{"name":"案名","pressure":"この案に効いている淘汰圧・前提（1〜3文）","body":["体の特徴（箇条書き3〜6個）"],"rationale":"なぜそうなるかの根拠（2〜4文）","concerns":["懸念点・弱い部分（1〜3個）"],"support":"どの機が推したか","scores":{"生物学":0,"映像":0}}],"splits":[{"issue":"論点","stances":{"MELCHIOR":"立場（20字以内）","BALTHASAR":"立場","CASPER":"立場"}}]}
 \`\`\`` } ];
+}
+function msgsChainExtract(T){
+  const lastR = T.chainN;
+  const units = UNITS.map((u,i)=>`### ${u.name}\n${(T.rounds[lastR]?.[i]?.text||'（なし）').slice(0,2500)}`).join('\n\n');
+  return [ { role:'system', content:'あなたは議事録の整理係。議長のまとめと各機の最終発言から、指定のJSONだけを出力する。文章や前置きは書かない。' },
+    { role:'user', content:`【仮定】\n${T.q}\n\n## 議長のまとめ\n${(T.synth?.text||'').slice(0,6000)}\n\n## 各機の最終ラウンドの発言\n${units}\n\n議長のまとめの「残った案」（最大3つ、同じ順）と「割れた論点」を、次のJSONで出力。各項目は設計書として使えるよう具体的に。2軸評価がなければ scores は省略。
+{"ideas":[{"name":"案名","pressure":"この案に効いている淘汰圧・前提（1〜3文）","body":["体の特徴（3〜6個）"],"rationale":"根拠（2〜4文）","concerns":["懸念点（1〜3個）"],"support":"どの機が推したか","scores":{"生物学":0,"映像":0}}],"splits":[{"issue":"論点","stances":{"MELCHIOR":"立場（20字以内）","BALTHASAR":"立場","CASPER":"立場"}}]}` } ];
+}
+function ideasFromMarkdown(text){
+  const sec = sectionOf(text, /残った案/); const out = [];
+  sec.split(/\n(?=\s*\d+[.．)])/).forEach(chunk=>{
+    const m = chunk.match(/^\s*\d+[.．)]\s*\**(.+?)\**\s*[—\-–:：]\s*([\s\S]*)$/);
+    if(!m) return;
+    const rest = m[2].replace(/\s+/g,' ').trim();
+    const sc = {}; (rest.match(/(生物学|映像)\s*(\d+(?:\.\d+)?)\s*\/\s*10/g)||[]).forEach(x=>{ const mm = x.match(/(生物学|映像)\s*(\d+(?:\.\d+)?)/); sc[mm[1]] = +mm[2]; });
+    const sup = (rest.match(/支持[:：]\s*(.+)$/)||[])[1] || '';
+    const desc = rest.replace(/評価[:：].*$/,'').replace(/支持[:：].*$/,'').trim();
+    out.push({ name: m[1].replace(/\*/g,'').trim(), pressure:'', body: desc.split(/。/).filter(Boolean).map(x=>x+'。'), rationale:'', concerns:[], support: sup, scores: sc, partial:true });
+  });
+  return out.slice(0,3);
+}
+async function buildChainResult(T, is, signal){
+  let j = null;
+  const jm = (T.synth?.text||'').match(/```json\s*([\s\S]*?)(```|$)/);
+  if(jm) j = parseLoose(jm[1]);
+  if(!(j && Array.isArray(j.ideas) && j.ideas.length)){
+    T.curRound = 'final';
+    setPhase('最終 / 設計書データを整理中…');
+    try{
+      const r = await chat(is, msgsChainExtract(T), null, signal, 3000, 'low', false);
+      addCost(T, r.usage, r.usedSpec);
+      const k = r.text.indexOf('{'); j = parseLoose(r.text.slice(k, r.text.lastIndexOf('}')+1)) || j;
+    }catch(e){ if(e.name==='AbortError') throw e; }
+  }
+  const ideas = (j && Array.isArray(j.ideas) && j.ideas.length) ? j.ideas : ideasFromMarkdown(T.synth?.text||'');
+  T.chainResult = { remaining: ideas.map(x=>x.name), ideas, splits: (j && Array.isArray(j.splits)) ? j.splits : [] };
+}
+async function makeDesignData(){
+  const s = current, T = s.turns[viewTurn];
+  if(abortCtl) return toast('審議中は実行できません');
+  await fetchOR(); abortCtl = new AbortController(); setRunning(true);
+  try{ await buildChainResult(T, intSpec(T.mode, T.specs), abortCtl.signal); computeStats(T); toast('設計書データを作成しました'); }
+  catch(e){ toast('作成できませんでした: ' + e.message); }
+  finally{ T.curRound = null; abortCtl = null; setRunning(false); await saveSession(s); render(); }
 }
 async function chainRound(s, t, k, M){
   const T = s.turns[t];
@@ -1391,11 +1445,10 @@ async function runChain(s, t, M, priv, is){
   setPhase('最終 / 議長がまとめ中…');
   T.synth = { text:'', model:is.model, streaming:true };
   try{
-    const r = await chat(is, msgsChainFinal(T), txt=>{ T.synth.text = txt; if(isViewing(s,t) && activeTab==='sum') renderBody(); }, abortCtl.signal, 3500, M.effort, false);
+    const r = await chat(is, msgsChainFinal(T), txt=>{ T.synth.text = txt; if(isViewing(s,t) && activeTab==='sum') renderBody(); }, abortCtl.signal, 6000, M.effort, false);
     T.synth.text = r.text; T.synth.model = r.usedSpec.model; addCost(T, r.usage, r.usedSpec);
-    const jm = r.text.match(/```json\s*([\s\S]*?)```/) ; const j = jm ? (()=>{ try{ return JSON.parse(jm[1]); }catch(e){ return jsonFrom(jm[1]); } })() : jsonFrom(r.text.slice(r.text.lastIndexOf('{"remaining')));
-    T.chainResult = { remaining: j?.remaining || [], ideas: Array.isArray(j?.ideas) ? j.ideas : [], splits: j?.splits || [] };
     T.one = oneLiner(r.text);
+    await buildChainResult(T, is, abortCtl.signal);
   }catch(e){ if(e.name==='AbortError') throw e; T.synth.text = 'まとめに失敗しました: ' + e.message; T.chainResult = { remaining:[], splits:[] }; }
   T.synth.streaming = false;
   T.curRound = null;
@@ -1765,6 +1818,9 @@ function extrasHtml(T){
   if(T.type==='chain'){
     let h = '';
     const ideas = T.chainResult?.ideas || [];
+    if(!ideas.length && T.status==='done' && T.synth?.text){
+      h += `<div class="card"><div class="muted">この審議には設計書データがありません（議長のまとめが途中で切れた等）</div><button class="btn small" style="margin-top:8px" onclick="makeDesignData()">📋 設計書データを作成（約1円）</button></div>`;
+    }
     if(ideas.length){
       h += `<div class="card"><div class="muted">残った案（設計書をMarkdownでコピーできます）</div>${ideas.map((x,n)=>`
         <div class="sec sec-final" style="margin-top:10px">
