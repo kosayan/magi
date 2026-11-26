@@ -281,7 +281,7 @@ table.score td.hi{color:var(--ok);font-weight:800} table.score td.split{color:va
 /* =====================================================================
    定義
    ===================================================================== */
-const APP_VERSION = 'v4.12';
+const APP_VERSION = 'v4.13';
 const NEUTRAL = (n, name) => `あなたは合議制AI「MAGI」の第${n}ユニット ${name}。他の2機と対等な、独立した判断者である。特定の役割や立場は持たず、自分の知識と推論で最も妥当と考える答えを出す。事実と推測をはっきり区別し、不確かな点は不確かと明言する。`;
 const UNITS = [
   { key:'m', name:'MELCHIOR-1', jp:'メルキオール', vendor:'anthropic', color:'#4fc3f7', persona: NEUTRAL(1,'MELCHIOR') },
@@ -413,7 +413,7 @@ const clone = o => JSON.parse(JSON.stringify(o));
 const $ = id => document.getElementById(id);
 let cfg = loadCfg();
 let orModels = [], gModels = [];
-let current = null, viewTurn = 0, abortCtl = null, activeTab = 'sum', googleBlocked = false;
+let current = null, viewTurn = 0, abortCtl = null, activeTab = 'sum', googleBlocked = false, runT = null;
 let pending = [];
 let sumOn = false, sumTouched = false;
 let typeSel = 'auto';
@@ -691,7 +691,7 @@ function toGemini(messages){
 }
 async function geminiNative(spec, messages, onDelta, signal, maxTokens){
   const url = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(spec.model)}:streamGenerateContent?alt=sse`;
-  const body = { ...toGemini(messages), generationConfig:{ maxOutputTokens: maxTokens } };
+  const body = { ...toGemini(messages), generationConfig:{ maxOutputTokens: maxTokens*2 + 2048 } };   // 思考トークンも上限に含まれるので多めに（無料枠なので費用は増えない）
   const res = await fetch(url, { method:'POST', signal, headers:{ 'x-goog-api-key': cfg.gkey, 'Content-Type':'application/json' }, body: JSON.stringify(body) });
   if(!res.ok){ let t=''; try{ t = await res.text(); }catch(e){} const err = new Error(`HTTP ${res.status} ${t.slice(0,300)}`); err.status = res.status; throw err; }
   const reader = res.body.getReader(); const dec = new TextDecoder();
@@ -721,7 +721,8 @@ async function chat(spec, messages, onDelta, signal, maxTokens, effort, web){
   if(spec.provider==='google' && googleBlocked) spec = { provider:'or', model:spec.orModel, orModel:spec.orModel };
   try{
     return { ...(await chatRaw(spec, messages, onDelta, signal, maxTokens, effort, web)), usedSpec:spec };
-  }catch(e){
+  }catch(err){
+    let e = err;
     // 残高が少ないと「max_tokensぶん払えない」で402になる → 払える範囲に縮めて1回だけ再試行
     if(e.status===402 && spec.provider==='or'){
       const m = e.message.match(/afford\s+(\d+)/);
@@ -733,6 +734,12 @@ async function chat(spec, messages, onDelta, signal, maxTokens, effort, web){
       throw e;
     }
     if(e.name==='AbortError' || spec.provider!=='google') throw e;
+    if(e.status===429 || e.status===503 || e.status===500){   // 混雑・回数制限は少し待って1回だけ再試行
+      await new Promise(r=>setTimeout(r, 4000));
+      if(signal?.aborted) throw new DOMException('aborted','AbortError');
+      try{ return { ...(await chatRaw(spec, messages, onDelta, signal, maxTokens, effort, web)), usedSpec:spec }; }
+      catch(e2){ if(e2.name==='AbortError') throw e2; e = e2; }
+    }
     const fb = { provider:'or', model:spec.orModel, orModel:spec.orModel };
     googleBlocked = true;
     cfg.gLastErr = `${new Date().toLocaleString()} ${spec.model}: ${e.message.slice(0,300)}`; save('magi_cfg3', cfg);
@@ -950,8 +957,9 @@ function aliveNote(T, r){
   if(a.length === 3) return '';
   return `\n\n【重要】応答できたのは${a.length}機（${a.join('・')}）だけです。応答なしの機の意見を推測で補わないこと。「3機一致」「全会一致」などの表現は使わず、必ず「応答した${a.length}機」を基準に書くこと。`;
 }
+function aliveFinal(T){ return T.finals?.some(Boolean) ? T.finals.filter(f=>f && !f.error).length : aliveUnits(T, 0).length; }
 function fixMarks(T, text){
-  const n = aliveUnits(T, 0).length;
+  const n = aliveFinal(T);
   if(n === 3 || !text) return text;
   return text.replace(/【3機一致】/g, `【${n}機一致】`).replace(/3機(とも|が)?一致/g, `応答した${n}機が一致`).replace(/全会一致/g, `応答した${n}機が一致`);
 }
@@ -1195,7 +1203,7 @@ async function startRun(isFollow){
 async function runPipeline(s, t){
   const T = s.turns[t];
   const mode = T.mode, priv = T.priv, M = MODES[mode] || MODES.eco, specs = T.specs;
-  T.status = 'running';
+  T.status = 'running'; runT = T;
   render();
   abortCtl = new AbortController();
   setRunning(true);
@@ -1271,6 +1279,17 @@ async function runPipeline(s, t){
 function cleanPartial(T){
   (T.rounds||[]).forEach(r=> r && r.forEach((x,i)=>{ if(x && x.streaming) r[i] = null; }));
   if(T.synth && T.synth.streaming) T.synth = null;
+}
+/** 応答なしだった機だけ取り直して、結論を出し直す（連続・時系列以外） */
+async function retryFailed(){
+  const s = current, t = viewTurn, T = s?.turns[t];
+  if(!T || abortCtl || T.type==='chain' || T.status!=='done') return;
+  if(!cfg.key){ toast('先にOpenRouterのAPIキーを設定してください'); return openSettings(); }
+  await Promise.all([fetchOR(), fetchG()]);
+  googleBlocked = false;
+  T.errors = {}; T.synth = null; T.final = null; T.one = null; T.r2done = false;
+  toast('応答なしだった機を取り直します');
+  await runPipeline(s, t);
 }
 /** 「▶ 続きから再開」 */
 async function resumeTurn(){
@@ -1656,7 +1675,7 @@ function setPremise(T, text){
 /** 停止中の時系列を再開する共通処理 */
 async function resumeTL(work, onAbort){
   const s = current, t = viewTurn, T = s.turns[t], tl = T.timeline;
-  T.status = 'running'; tl.waiting = false;
+  T.status = 'running'; tl.waiting = false; runT = T;
   abortCtl = new AbortController(); setRunning(true); render();
   try{
     await Promise.all([fetchOR(), fetchG()]);
@@ -1674,6 +1693,7 @@ function proceedR0(){
   const edited = $('tl-premise')?.value.trim();
   if(!edited) return toast('世界設定が空です');
   if(edited !== (T.premiseFull||'').trim()){ setPremise(T, edited); T.premiseEdited = true; }
+  delete T.premiseDraft;
   if(!tl.eras?.length) return toast('時代の区切りが読み取れません');
   tl.stage = 'eras';
   return resumeTL((s,t,T,M,is)=> runEras(s, t, M, is, 0), ()=>{ tl.stage = 'r0'; tl.steps = []; });
@@ -1683,7 +1703,7 @@ function redoR0(){
   const T = current?.turns[viewTurn], tl = T?.timeline;
   if(!tl?.waiting || tl.stage!=='r0' || abortCtl) return;
   const backup = { premise:T.premise, premiseFull:T.premiseFull, genTime:tl.genTime, genFrom:tl.genFrom, eras:tl.eras, r0:T.rounds[0] };
-  T.premiseEdited = false;
+  T.premiseEdited = false; delete T.premiseDraft;
   return resumeTL(async (s,t,T,M,is)=>{ await runR0(s, t, M, is); tl.waiting = true; tl.stage = 'r0'; },
     ()=>{ Object.assign(T, { premise:backup.premise, premiseFull:backup.premiseFull }); Object.assign(tl, { genTime:backup.genTime, genFrom:backup.genFrom, eras:backup.eras }); T.rounds[0] = backup.r0; tl.stage = 'r0'; });
 }
@@ -1731,7 +1751,7 @@ async function runEras(s, t, M, is, from){
 async function chooseCand(n){
   const s = current, t = viewTurn, T = s.turns[t], tl = T.timeline;
   if(!tl?.waiting || tl.stage==='r0' || abortCtl) return;
-  tl.steps[tl.cur].chosen = n; tl.waiting = false; T.status = 'running';
+  tl.steps[tl.cur].chosen = n; tl.waiting = false; T.status = 'running'; runT = T;
   abortCtl = new AbortController(); setRunning(true); render();
   try{
     await Promise.all([fetchOR(), fetchG()]);
@@ -1956,13 +1976,15 @@ async function runUnit(s, t, r, i, messages, M){
   if(T.rounds[r]?.[i] && !T.rounds[r][i].streaming) return;     // 再開時：終わった回答はそのまま使う
   T.rounds[r][i] = { text:'', model:spec.model, streaming:true };
   if(isViewing(s,t)) renderTriad();
+  let tokens = M.tokens, effort = M.effort;
   for(let attempt=0; attempt<2; attempt++){
     try{
+      if(attempt>0){ T.rounds[r][i] = { text:'', model:spec.model, streaming:true }; await new Promise(res=>setTimeout(res, 1500)); }
       const res = await chat(spec, messages, txt=>{
         T.rounds[r][i].text = txt;
         if(isViewing(s,t) && activeTab===UNITS[i].key) renderBody();
-      }, abortCtl.signal, M.tokens, M.effort, T.web);
-      if(!res.text.trim()) throw new Error('空の応答');
+      }, abortCtl.signal, tokens, effort, T.web);
+      if(!res.text.trim()){ addCost(T, res.usage, res.usedSpec); tokens = Math.round(tokens*1.6); effort = 'low'; throw new Error('空の応答（考える処理で上限を使い切った可能性）'); }
       T.rounds[r][i] = { text:res.text, model:res.usedSpec.model, ...parseOut(res.text) };
       T.models[i] = res.usedSpec.model;
       addCost(T, res.usage, res.usedSpec);
@@ -1989,7 +2011,11 @@ function addCost(T, u, spec){
   renderCost();
 }
 function stopRun(){ abortCtl && abortCtl.abort(); }
-function setPhase(t){ $('r-phase').textContent = t; }
+function setPhase(t){
+  if(runT && runT.status==='running') runT.phase = t;
+  const viewing = current?.turns?.[viewTurn];
+  if(!runT || runT.status!=='running' || viewing===runT) $('r-phase').textContent = t;
+}
 
 /* =====================================================================
    費用見積もり
@@ -2116,7 +2142,8 @@ function render(){
   $('r-meta').textContent = `${s.turns.length>1?`Q${viewTurn+1} ・`:''}${ty?`${ty.icon}${ty.label}型${T.typeAuto?'（自動判定）':''}・`:''}${MODES[T.mode]?.label||''}モード${T.web?'・Web検索':''}${T.priv?'・🔒機密':''}`;
   $('r-q').textContent = T.q;
   $('r-docs').innerHTML = (T.docs||[]).map(d=>`<span class="chip">${d.kind==='image'?'🖼':'📄'} <span class="nm">${esc(d.name)}</span></span>`).join('') + (T.summary ? `<span class="chip">📝 要約して審議</span>` : '');
-  if(T.status!=='running') setPhase(T.status==='done' || T.status==='waiting' ? phaseDone(T) : T.status==='interrupted' ? '途中で止まりました（アプリが閉じられた等）' : T.status==='aborted' ? '中断しました' : 'エラー');
+  if(T.status==='running') $('r-phase').textContent = T.phase || '';
+  else setPhase(T.status==='done' || T.status==='waiting' ? phaseDone(T) : T.status==='interrupted' ? '途中で止まりました（アプリが閉じられた等）' : T.status==='aborted' ? '中断しました' : 'エラー');
   renderBanner(); renderTriad(); renderTabs(); renderBody(); renderCost(); renderRate();
   const last = viewTurn === s.turns.length-1;
   const canFollow = last && (T.status==='done');
@@ -2208,7 +2235,7 @@ function extrasHtml(T){
     if(tl.waiting && tl.stage==='r0'){
       h += `<div class="card" style="border-color:var(--cond)"><b>🌍 世界設定（R0）を確認してください</b>
         <div class="muted" style="margin:4px 0 8px">そのまま進めても、書き換えてから進めてもOK。「世代時間: N年」の行を書き換えると、時代の換算も変わります。</div>
-        <textarea id="tl-premise" style="min-height:260px;font-size:14px;line-height:1.6">${esc(T.premiseFull || T.premise || '')}</textarea>
+        <textarea id="tl-premise" style="min-height:260px;font-size:14px;line-height:1.6" oninput="current.turns[viewTurn].premiseDraft=this.value">${esc(T.premiseDraft ?? T.premiseFull ?? T.premise ?? '')}</textarea>
         <div class="muted" style="margin-top:6px">時代: ${esc((tl.eras||[]).map(e=>e.label).join(' → '))}（世代時間 ${tl.genTime}年${tl.genFrom==='R0'?'・R0で決定':''}）</div>
         <button class="btn primary" style="width:100%;margin-top:10px" onclick="proceedR0()">この世界設定で進める</button>
         <button class="btn" style="width:100%;margin-top:8px" onclick="redoR0()">🔄 R0を回し直す</button>
@@ -2322,7 +2349,7 @@ function renderBody(){
     pre += extrasHtml(T);
     pre = resumeCard(T) + pre;
     if(!T.synth){ el.innerHTML = pre + '<div class="card muted">審議が終わると、ここに議長の結論が出ます。各ユニットのタブで途中経過をリアルタイムに見られます。</div>'; return; }
-    el.innerHTML = pre + `<div class="card"><div class="muted">議長: ${esc(T.synth.model)}${T.synth.streaming?' ・生成中…':''}</div>${aliveUnits(T,0).length<3 && T.rounds[0] ? `<div class="warn" style="margin:4px 0">⚠ ${3-aliveUnits(T,0).length}機が応答なしのため、応答した${aliveUnits(T,0).length}機だけで結論を出しています</div>` : ''}${richText(fixMarks(T, T.synth.text))}</div>`;
+    el.innerHTML = pre + `<div class="card"><div class="muted">議長: ${esc(T.synth.model)}${T.synth.streaming?' ・生成中…':''}</div>${aliveFinal(T)<3 && T.rounds[0] ? `<div class="warn" style="margin:4px 0">⚠ ${3-aliveFinal(T)}機が応答なしのため、応答した${aliveFinal(T)}機だけで結論を出しています${T.type!=='chain' && T.status==='done' && !abortCtl ? ' <a href="#" onclick="retryFailed();return false" style="color:var(--m)">→ 応答なしの機を取り直す</a>' : ''}</div>` : ''}${richText(fixMarks(T, T.synth.text))}</div>`;
     return;
   }
   const i = UNITS.findIndex(u=>u.key===activeTab), u = UNITS[i];
@@ -2396,7 +2423,7 @@ async function copyAll(){
   let out = '';
   s.turns.forEach((T,k)=>{
     out += `${k?'\n\n':''}# Q${k+1}（${TYPES[T.type]?.label||''}型）\n${T.q}\n${(T.docs||[]).length?`添付: ${T.docs.map(d=>d.name).join('、')}\n`:''}\n## ${T.tally?.big||'-'}（${T.tally?.sub||''}）\n${T.tally?.one||''}\n\n## 議長の結論\n${T.synth?.text||''}\n`;
-    UNITS.forEach((u,i)=>{ out += `\n### ${u.name}（${T.models[i]}）\n`; T.rounds.forEach((r,j)=>{ out += `\n#### ${j===0?'独立回答':TYPES[T.type]?.r2}\n${r?.[i]?.text||'（応答なし）'}\n`; }); });
+    UNITS.forEach((u,i)=>{ out += `\n### ${u.name}（${T.models[i]}）\n`; T.rounds.forEach((r,j)=>{ out += `\n#### ${T.type==='chain' ? chainTitle(T,j) : (j===0?'独立回答':TYPES[T.type]?.r2)}\n${r?.[i]?.text||'（応答なし）'}\n`; }); });
   });
   try{ await navigator.clipboard.writeText(out); toast('コピーしました'); }catch(e){ toast('コピーできませんでした'); }
 }
