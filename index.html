@@ -281,7 +281,7 @@ table.score td.hi{color:var(--ok);font-weight:800} table.score td.split{color:va
 /* =====================================================================
    定義
    ===================================================================== */
-const APP_VERSION = 'v4.11';
+const APP_VERSION = 'v4.12';
 const NEUTRAL = (n, name) => `あなたは合議制AI「MAGI」の第${n}ユニット ${name}。他の2機と対等な、独立した判断者である。特定の役割や立場は持たず、自分の知識と推論で最も妥当と考える答えを出す。事実と推測をはっきり区別し、不確かな点は不確かと明言する。`;
 const UNITS = [
   { key:'m', name:'MELCHIOR-1', jp:'メルキオール', vendor:'anthropic', color:'#4fc3f7', persona: NEUTRAL(1,'MELCHIOR') },
@@ -437,6 +437,7 @@ function md(s){
   return h.replace(/<a /g, '<a target="_blank" rel="noopener" ')
     .replace(/【未確認】/g, '<span class="unverified">未確認</span>')
     .replace(/【3機一致】/g, '<span class="mk mk3">3機一致</span>')
+    .replace(/【2機一致】/g, '<span class="mk mk3">2機一致</span>')
     .replace(/【2機】/g, '<span class="mk mk2">2機</span>')
     .replace(/【1機のみ】/g, '<span class="mk mk1">1機のみ</span>');
 }
@@ -918,7 +919,7 @@ B: N/10
 /* =====================================================================
    プロンプト：議長（統合役）・補助
    ===================================================================== */
-const CHAIR_SYS = 'あなたは合議制AI「MAGI」の議長。3機の意見を仕切り、最終的な答えを1つにまとめる。オープンな質問でも必ず「ひとことで言うと」の結論・評価を示す。多数派に機械的に従わず根拠の強さで判断し、割れた点はその理由とともに示す。正しそうな少数意見を切り捨てない。3機が一致していても根拠が弱ければそう明記する。合意率を正解確率として扱わない。日本語で、結論を先に、簡潔に。重要な語句は **太字**。';
+const CHAIR_SYS = 'あなたは合議制AI「MAGI」の議長。応答しなかったユニットは数に入れず、その意見を想像で補わない。3機の意見を仕切り、最終的な答えを1つにまとめる。オープンな質問でも必ず「ひとことで言うと」の結論・評価を示す。多数派に機械的に従わず根拠の強さで判断し、割れた点はその理由とともに示す。正しそうな少数意見を切り捨てない。3機が一致していても根拠が弱ければそう明記する。合意率を正解確率として扱わない。日本語で、結論を先に、簡潔に。重要な語句は **太字**。';
 function msgsRoute(T){
   return [ { role:'system', content:'あなたは質問の分類係。JSONのみを出力する。' },
     { role:'user', content:`次の質問を5タイプのどれか1つに分類してください。
@@ -943,12 +944,23 @@ function msgsSummarize(T){
   return [ { role:'system', content:'あなたは資料の要約担当。後で3つのAIがこの要約だけを見て議論する。事実・数字・日付・人物・発言を正確に残し、解釈や評価は加えない。重要な原文は「」で短く引用する。日本語で。' },
            { role:'user', content:`【このあと審議する質問】\n${T.q.slice(0,2000)}\n\n【資料】\n${texts.map(d=>`## ${d.name}\n${d.text}`).join('\n\n')}\n\n上の質問の審議に必要な情報を落とさないように、資料を最大5000字で要約してください。時系列があるものは時系列で。質問と関係が薄い部分は短くまとめてよい。` } ];
 }
+function aliveUnits(T, r){ return UNITS.map((u,i)=> T.rounds[r]?.[i] && !T.rounds[r][i].streaming ? u.name : null).filter(Boolean); }
+function aliveNote(T, r){
+  const a = aliveUnits(T, r);
+  if(a.length === 3) return '';
+  return `\n\n【重要】応答できたのは${a.length}機（${a.join('・')}）だけです。応答なしの機の意見を推測で補わないこと。「3機一致」「全会一致」などの表現は使わず、必ず「応答した${a.length}機」を基準に書くこと。`;
+}
+function fixMarks(T, text){
+  const n = aliveUnits(T, 0).length;
+  if(n === 3 || !text) return text;
+  return text.replace(/【3機一致】/g, `【${n}機一致】`).replace(/3機(とも|が)?一致/g, `応答した${n}機が一致`).replace(/全会一致/g, `応答した${n}機が一致`);
+}
 function threeAnswers(T, r){ return UNITS.map((u,i)=>`### ${u.name}\n${T.rounds[r]?.[i]?.text || '（応答なし）'}`).join('\n\n'); }
 /** 調査型：照合 */
 function msgsCheck(T){
   return [ { role:'system', content: CHAIR_SYS + '\n今は照合の段階。JSONのみを出力する。' },
-    { role:'user', content:`【質問】\n${T.q.slice(0,1500)}\n\n${threeAnswers(T,0)}\n\n3機の回答に含まれる重要な主張を照合してください。
-- agreed: 3機（または応答した全機）が実質的に一致している主張
+    { role:'user', content:`【質問】\n${T.q.slice(0,1500)}\n\n${threeAnswers(T,0)}${aliveNote(T,0)}\n\n3機の回答に含まれる重要な主張を照合してください。
+- agreed: 応答した全機が実質的に一致している主張（応答なしの機は数えない）
 - disputed: 機によって内容が食い違う主張（各見解を、どの機かは書かずに併記）
 - unique: 1機だけが述べている重要な主張（どの機かは書かない）
 表現の違いは無視。質問への答えに影響する主張だけを対象に、各最大8件。
@@ -1006,7 +1018,7 @@ ${T.rounds[1] ? `\n## 争点の検証結果\n${threeAnswers(T,1)}` : ''}
 （質問への答えを1〜2文で言い切る）
 
 ## 解説
-（3機の内容を統合した、最も正確で分かりやすい解説。各ポイントの末尾に【3機一致】【2機】【1機のみ】のいずれかを付ける）
+（3機の内容を統合した、最も正確で分かりやすい解説。各ポイントの末尾に${aliveUnits(T,0).length===3 ? '【3機一致】【2機】【1機のみ】' : '【2機一致】【1機のみ】'}のいずれかを付ける）
 
 ## 食い違った点と議長の判定
 （争点ごとに、どの見解が妥当か・その理由。決着がつかなければそう書く。なければ「なし」）
@@ -1061,7 +1073,7 @@ ${T.rounds[1] ? `\n## 匿名の添削結果\n${UNITS.map((u,i)=>`### ${u.name}�
 ## 取り入れたポイント
 （どの下書きの何を採用し、何を直したか。箇条書き）`;
   }
-  return [ { role:'system', content: CHAIR_SYS }, { role:'user', content: user } ];
+  return [ { role:'system', content: CHAIR_SYS }, { role:'user', content: user + aliveNote(T, T.rounds[1] ? 1 : 0) } ];
 }
 
 /* =====================================================================
@@ -1239,7 +1251,7 @@ async function runPipeline(s, t){
       const r = await chat(is, msgsSynth(s, t), txt=>{ T.synth.text = txt; if(isViewing(s,t) && activeTab==='sum') renderBody(); }, abortCtl.signal, T.type==='creation'?6000:3500, M.effort, false);
       T.synth.text = r.text; T.synth.model = r.usedSpec.model; addCost(T, r.usage, r.usedSpec);
       T.final = parseFinal(r.text);
-      T.one = oneLiner(r.text);
+      T.one = oneLiner(fixMarks(T, r.text));
       computeStats(T);
     }catch(e){ if(e.name==='AbortError') throw e; T.synth.text = '統合に失敗しました: ' + e.message; }
     T.synth.streaming = false;
@@ -2285,8 +2297,8 @@ function extrasHtml(T){
   if(T.type==='research' && T.check && !T.check.failed){
     const C = T.check;
     const li = (arr, f) => arr.map(x=>`<li>${esc(f(x))}</li>`).join('');
-    return `<details class="round"><summary><span>🔎 照合結果：一致${C.agreed.length}・食い違い${C.disputed.length}・1機のみ${C.unique.length}</span><span class="muted">タップ</span></summary><div class="inner md-body">
-      ${C.agreed.length?`<div class="sec sec-basis"><div class="hd">3機一致</div><ul>${li(C.agreed, x=>x)}</ul></div>`:''}
+    return `<details class="round"><summary><span>🔎 照合結果${aliveUnits(T,0).length<3?`（応答${aliveUnits(T,0).length}機）`:''}：一致${C.agreed.length}・食い違い${C.disputed.length}・1機のみ${C.unique.length}</span><span class="muted">タップ</span></summary><div class="inner md-body">
+      ${C.agreed.length?`<div class="sec sec-basis"><div class="hd">${aliveUnits(T,0).length===3?'3機一致':`応答した${aliveUnits(T,0).length}機が一致`}</div><ul>${li(C.agreed, x=>x)}</ul></div>`:''}
       ${C.disputed.length?`<div class="sec sec-minor"><div class="hd">食い違い</div><ul>${li(C.disputed, d=>`${d.point}：${(d.positions||[]).join(' ／ ')}`)}</ul></div>`:''}
       ${C.unique.length?`<div class="sec sec-risk"><div class="hd">1機のみ</div><ul>${li(C.unique, u=>u.point)}</ul></div>`:''}
     </div></details>`;
@@ -2310,7 +2322,7 @@ function renderBody(){
     pre += extrasHtml(T);
     pre = resumeCard(T) + pre;
     if(!T.synth){ el.innerHTML = pre + '<div class="card muted">審議が終わると、ここに議長の結論が出ます。各ユニットのタブで途中経過をリアルタイムに見られます。</div>'; return; }
-    el.innerHTML = pre + `<div class="card"><div class="muted">議長: ${esc(T.synth.model)}${T.synth.streaming?' ・生成中…':''}</div>${richText(T.synth.text)}</div>`;
+    el.innerHTML = pre + `<div class="card"><div class="muted">議長: ${esc(T.synth.model)}${T.synth.streaming?' ・生成中…':''}</div>${aliveUnits(T,0).length<3 && T.rounds[0] ? `<div class="warn" style="margin:4px 0">⚠ ${3-aliveUnits(T,0).length}機が応答なしのため、応答した${aliveUnits(T,0).length}機だけで結論を出しています</div>` : ''}${richText(fixMarks(T, T.synth.text))}</div>`;
     return;
   }
   const i = UNITS.findIndex(u=>u.key===activeTab), u = UNITS[i];
