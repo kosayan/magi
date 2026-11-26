@@ -282,7 +282,7 @@ table.score td.hi{color:var(--ok);font-weight:800} table.score td.split{color:va
 /* =====================================================================
    定義
    ===================================================================== */
-const APP_VERSION = 'v4.15';
+const APP_VERSION = 'v4.16';
 const NEUTRAL = (n, name) => `あなたは合議制AI「MAGI」の第${n}ユニット ${name}。他の2機と対等な、独立した判断者である。特定の役割や立場は持たず、自分の知識と推論で最も妥当と考える答えを出す。事実と推測をはっきり区別し、不確かな点は不確かと明言する。`;
 const UNITS = [
   { key:'m', name:'MELCHIOR-1', jp:'メルキオール', vendor:'anthropic', color:'#4fc3f7', persona: NEUTRAL(1,'MELCHIOR') },
@@ -1340,7 +1340,8 @@ const CONSULT_RULES = `
 - 相談者の味方でいる。ただし相談者に都合のいい話だけをしない。相談者側の見落としも、きつくない言い方で1つは指摘する。
 - 次の3つの視点を必ず考える：①相談者本人の気持ち ②相手から見たらどう見えるか ③半年〜数年後の長い目で見たとき。
 - 相手の人格や心理を断定・診断しない。事実と推測をはっきり分ける。
-- 相手を操作・支配するための方法は提案しない。
+- 相手の気持ちや行動を動かすための戦略（伝え方・言い回し・タイミング・交渉の進め方・返報性や一貫性などの心理的な働きかけ）は、役に立つなら遠慮せず提案してよい。その場合は各手法に「効く理由・副作用・相手に気づかれたときのリスク」を必ず添え、使うかどうかの判断は相談者に任せる。
+- ただし、嘘で事実をねじ曲げる・相手の記憶や認識を疑わせる・脅す・罪悪感で縛る・周りから孤立させる・弱みや不安につけこむ、といった相手を実際に傷つけるやり方は提案しない。
 - 暴力・ハラスメント・つきまとい・自分や他人を傷つける恐れなど、安全に関わる内容がある場合は、選択肢の比較より安全の確保を最優先し、身近な信頼できる人や専門の相談窓口に頼ること、差し迫った危険があれば110番・119番を勧める。
 - AIが本人の代わりに人生を決めない。最後に選ぶのは本人。`;
 const CONSULT_DEFAULT_PRI = ['相手との関係を守る','自分の気持ちに正直でいる','早く気持ちを楽にする','後悔しない','周りへの影響を小さくする'];
@@ -1381,6 +1382,9 @@ function consultInstr(T, k){
 
 ## 避けたほうがいい行動
 （理由つきで1〜3個）
+
+## 相手を動かす伝え方・働きかけ
+（使えそうな戦略を1〜3個。各手法に「効く理由／副作用／気づかれたときのリスク」を添える。不要なら「特になし」）
 
 ## あなた側の見落としかもしれない点
 （相談者を責めない言い方で1〜2個）
@@ -1437,13 +1441,14 @@ function msgsConsultOpts(T){
 - forks: 選択を分ける価値観の分かれ道（1〜2個）
 - priorities: 相談者に選んでもらう「大事にしたいこと」の候補（4〜6個、この相談に合わせた具体的な言葉で）
 - blindspots: 相談者側の見落としかもしれない点（責めない言い方で1〜2個）
-出力：{"reading":"状況の読み（事実／解釈／相手から見ると、2〜4文）","agreed":["…"],"avoid":["…"],"options":[{"name":"選択肢名","desc":"内容","fits":"向いている場合","risk":"リスク","first":"最初の一歩（言い方の例）","from":"どの機の案か"}],"forks":["〇〇を取るか、△△を取るか"],"priorities":["…"],"blindspots":["…"]}` } ];
+- tactics: 3機が挙げた「相手を動かす伝え方・働きかけ」を整理（0〜3個。各手法に効く理由・副作用・気づかれたときのリスク）
+出力：{"reading":"状況の読み（事実／解釈／相手から見ると、2〜4文）","agreed":["…"],"avoid":["…"],"options":[{"name":"選択肢名","desc":"内容","fits":"向いている場合","risk":"リスク","first":"最初の一歩（言い方の例）","from":"どの機の案か"}],"forks":["〇〇を取るか、△△を取るか"],"priorities":["…"],"blindspots":["…"],"tactics":[{"name":"手法名","how":"具体的なやり方・言い方","why":"効く理由","side":"副作用","risk":"気づかれたときのリスク"}]}` } ];
 }
 function msgsConsultFinal(T){
   const C = T.consult;
   const table = (C.options||[]).map(o=>`- ${o.name}: ${UNITS.map((u,i)=>`${u.name.split('-')[0]} ${C.scores?.[o.name]?.[i] ?? '-'}`).join(' / ')} → 平均${r1(avg(UNITS.map((u,i)=>C.scores?.[o.name]?.[i]).filter(x=>x!=null)))}`).join('\n');
   return [ { role:'system', content: CHAIR_SYS + '\n' + CONSULT_RULES },
-    { role:'user', content:`【相談】\n${T.q}\n\n${consultQA(T)}\n\n## 整理した状況\n${C.reading||''}\n\n## 3機が一致したこと\n${(C.agreed||[]).join('\n')}\n\n## 避けたほうがいい行動\n${(C.avoid||[]).join('\n')}\n\n## 相談者が選んだ優先順位\n${(C.chosen||[]).join(' ＞ ') || '（なし）'}${C.note?.trim() ? `\n補足：${C.note.trim()}` : ''}\n\n## 優先順位での採点\n${table}\n\n## 3機の最終意見\n${threeAnswers(T,2)}${aliveNote(T,2)}
+    { role:'user', content:`【相談】\n${T.q}\n\n${consultQA(T)}\n\n## 整理した状況\n${C.reading||''}\n\n## 3機が一致したこと\n${(C.agreed||[]).join('\n')}\n\n## 避けたほうがいい行動\n${(C.avoid||[]).join('\n')}\n\n## 整理した働きかけ\n${(C.tactics||[]).map(x=>`- ${x.name}: ${x.how||''}（効く理由: ${x.why||'-'}／副作用: ${x.side||'-'}／気づかれたら: ${x.risk||'-'}）`).join('\n') || '（なし）'}\n\n## 相談者が選んだ優先順位\n${(C.chosen||[]).join(' ＞ ') || '（なし）'}${C.note?.trim() ? `\n補足：${C.note.trim()}` : ''}\n\n## 優先順位での採点\n${table}\n\n## 3機の最終意見\n${threeAnswers(T,2)}${aliveNote(T,2)}
 
 議長として、相談者への最終的な助言をまとめてください。1つに断定せず、相談者の優先順位を踏まえた条件付きのおすすめにする。最後に、相談者が自分で考えを深めるための逆質問を入れる。
 
@@ -1461,6 +1466,9 @@ function msgsConsultFinal(T){
 （今日〜今週できる具体的な行動。言い方の例は「」で）
 
 ## 避けたほうがいいこと
+
+## 使える働きかけ
+（役立つ伝え方・心理的な働きかけがあれば、効く理由・副作用・気づかれたときのリスクとともに。なければ省略）
 
 ## あなた側の見落としかもしれない点
 
@@ -1507,7 +1515,7 @@ async function runConsult(s, t, M, is){
       try{ const r = await chat(is, msgsConsultOpts(T), null, abortCtl.signal, 3500, 'low', false); addCost(T, r.usage, r.usedSpec); const k = r.text.indexOf('{'); j = parseLoose(r.text.slice(k, r.text.lastIndexOf('}')+1)); }
       catch(e){ if(e.name==='AbortError') throw e; }
       Object.assign(C, {
-        reading: j?.reading || '', agreed: j?.agreed || [], avoid: j?.avoid || [], forks: j?.forks || [], blindspots: j?.blindspots || [],
+        reading: j?.reading || '', agreed: j?.agreed || [], avoid: j?.avoid || [], forks: j?.forks || [], blindspots: j?.blindspots || [], tactics: (Array.isArray(j?.tactics) ? j.tactics : []).filter(x=>x && x.name).slice(0,3),
         options: (Array.isArray(j?.options) ? j.options : []).filter(o=>o && o.name).slice(0,6),
         priorities: (Array.isArray(j?.priorities) && j.priorities.length ? j.priorities : CONSULT_DEFAULT_PRI).slice(0,6),
       });
@@ -1584,6 +1592,7 @@ function consultExtras(T){
     if(C.agreed?.length) h += `<div class="sec sec-basis"><div class="hd">${aliveUnits(T,1).length===3?'3機':`応答した${aliveUnits(T,1).length}機`}が一致したこと</div><ul class="md-body">${li(C.agreed)}</ul></div>`;
     if(C.avoid?.length) h += `<div class="sec sec-minor"><div class="hd">避けたほうがいい行動</div><ul class="md-body">${li(C.avoid)}</ul></div>`;
     if(C.forks?.length) h += `<div class="sec sec-cross"><div class="hd">分かれ道（あなたが決めること）</div><ul class="md-body">${li(C.forks)}</ul></div>`;
+    if(C.tactics?.length) h += `<div class="sec sec-agree"><div class="hd">相手を動かす伝え方・働きかけ（使うかはあなたの判断）</div>${C.tactics.map(x=>`<div style="margin-top:6px"><b>${esc(x.name)}</b>${x.how?`<div style="font-size:13px">${esc(x.how)}</div>`:''}<div style="font-size:12px">${x.why?`<span style="color:var(--ok)">効く理由：</span>${esc(x.why)}　`:''}${x.side?`<span style="color:var(--cond)">副作用：</span>${esc(x.side)}　`:''}${x.risk?`<span style="color:var(--ng)">気づかれたら：</span>${esc(x.risk)}`:''}</div></div>`).join('')}</div>`;
     if(C.options?.length){
       const sc = C.scores || {};
       h += `<div class="card"><div class="muted">選択肢${C.stage==='done' && Object.keys(sc).length ? '（あなたの優先順位での採点）' : ''}</div>${C.options.map(o=>{
