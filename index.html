@@ -282,7 +282,7 @@ table.score td.hi{color:var(--ok);font-weight:800} table.score td.split{color:va
 /* =====================================================================
    定義
    ===================================================================== */
-const APP_VERSION = 'v4.14';
+const APP_VERSION = 'v4.15';
 const NEUTRAL = (n, name) => `あなたは合議制AI「MAGI」の第${n}ユニット ${name}。他の2機と対等な、独立した判断者である。特定の役割や立場は持たず、自分の知識と推論で最も妥当と考える答えを出す。事実と推測をはっきり区別し、不確かな点は不確かと明言する。`;
 const UNITS = [
   { key:'m', name:'MELCHIOR-1', jp:'メルキオール', vendor:'anthropic', color:'#4fc3f7', persona: NEUTRAL(1,'MELCHIOR') },
@@ -383,9 +383,10 @@ const TYPES = {
 ---
 確信度: 0〜100の整数` },
 };
+TYPES.consult = { label:'相談', icon:'🤝', desc:'人間関係・自分はどうするべきか等の相談', r2:'選択肢', format:'' };
 TYPES.chain = { label:'連続', icon:'🔁', desc:'仮定1行から3機が複数ラウンド議論', r2:'議論', format:'' };
 const TYPE_KEYS = Object.keys(TYPES);
-const ROUTE_KEYS = ['decision','research','evaluation','ideation','creation'];   // 自動判定の対象（連続は手動のみ）
+const ROUTE_KEYS = ['decision','research','evaluation','ideation','creation','consult'];   // 自動判定の対象（連続は手動のみ）
 const PRESETS = {
   none: { label:'プリセットなし', r0:'', idea:'', axes:[] },
   kuso: { label:'🧬 空想淘汰圧', axes:['生物学','映像'], minAxis:{ name:'映像', min:7 },
@@ -936,11 +937,12 @@ function msgsRoute(T){
 - evaluation: 人・作品・物事の価値や凄さ・良し悪しを評価してほしい、意見が分かれやすい質問
 - ideation: 企画・アイデア・ネーミング・案出しを求める質問
 - creation: 文章・台本・コピー・メールなど成果物を書いてほしい依頼
+- consult: 人間関係・恋愛・家族・仕事の人付き合いなど個人的な悩みや、「自分はこの後どうするべき？」のように選択肢が決まっていない相談（AかBかが決まっているならdecision）
 
 【質問】
 ${T.q.slice(0,1500)}${(T.docs||[]).length?`\n（添付資料あり: ${T.docs.map(d=>d.name).join('、')}）`:''}
 
-出力：{"type":"decision|research|evaluation|ideation|creation","reason":"20字以内"}` } ];
+出力：{"type":"decision|research|evaluation|ideation|creation|consult","reason":"20字以内"}` } ];
 }
 function msgsJudge(T){
   const body = UNITS.map((u,i)=>`### ${u.name}\n${(T.rounds[0][i]?.text||'（応答なし）').slice(0,3000)}`).join('\n\n');
@@ -1194,6 +1196,7 @@ async function startRun(isFollow){
   else { s = { id: Date.now().toString(36), created: Date.now(), updated: Date.now(), title: T.q.slice(0,80), turns:[T] }; }
   const t = s.turns.length - 1;
   T.isTL = T.type==='chain' && !!cfg.tl;
+  if(T.type==='consult') makePrivate(T);
   pending = []; sumTouched = false; sumOn = false; typeSel = 'auto'; qEl.value = '';
   current = s; viewTurn = t; activeTab = 'sum';
   go('result');
@@ -1215,10 +1218,11 @@ async function runPipeline(s, t){
     if(!T.type){
       setPhase('00 / 質問のタイプを判定中…');
       try{
-        const r = await chat(cheapSpec(priv), msgsRoute(T), null, abortCtl.signal, 200, 'low', false);
+        const r = await chat(cheapSpec(true), msgsRoute(T), null, abortCtl.signal, 200, 'low', false);   // 相談内容の可能性があるので無料枠には送らない
         addCost(T, r.usage, r.usedSpec);
         const j = jsonFrom(r.text);
         T.type = j && ROUTE_KEYS.includes(j.type) ? j.type : 'research';
+        if(T.type==='consult') makePrivate(T);
         T.typeReason = j?.reason || '';
       }catch(e){ if(e.name==='AbortError') throw e; T.type = 'research'; T.typeReason = '判定失敗のため調査型'; }
       render(); await saveSession(s);
@@ -1231,6 +1235,8 @@ async function runPipeline(s, t){
       T.summary = r.text.trim() || null; T.sumModel = r.usedSpec.model;
       checkAbort(); await saveSession(s);
     }
+    // 🤝 相談型
+    if(T.type==='consult'){ await runConsult(s, t, M, intSpec(mode, T.specs)); T.status = T.consult.waiting ? 'waiting' : 'done'; setPhase(phaseDone(T)); return; }
     // 🔁 連続議論モード
     if(T.type==='chain'){
       if(T.isTL || T.timeline){ await runTimeline(s, t, M, priv, intSpec(mode, specs)); T.status = T.timeline.waiting ? 'waiting' : 'done'; }
@@ -1284,7 +1290,7 @@ function cleanPartial(T){
 /** 応答なしだった機だけ取り直して、結論を出し直す（連続・時系列以外） */
 async function retryFailed(){
   const s = current, t = viewTurn, T = s?.turns[t];
-  if(!T || abortCtl || T.type==='chain' || T.status!=='done') return;
+  if(!T || abortCtl || T.type==='chain' || T.type==='consult' || T.status!=='done') return;
   if(!cfg.key){ toast('先にOpenRouterのAPIキーを設定してください'); return openSettings(); }
   await Promise.all([fetchOR(), fetchG()]);
   googleBlocked = false;
@@ -1315,9 +1321,290 @@ async function resumeTurn(){
   await Promise.all([fetchOR(), fetchG()]);
   googleBlocked = false;
   cleanPartial(T);
+  if(T.consult && ((T.consult.stage==='q' && T.consult.questions?.length) || (T.consult.stage==='opts' && T.consult.options?.length))){ T.consult.waiting = true; T.status = 'waiting'; computeStats(T); await saveSession(s); render(); return; }
   if(T.timeline && T.timeline.stage==='eras'){ const st = T.timeline.steps[T.timeline.cur]; if(st && st.chosen==null && st.candidates?.length){ T.timeline.waiting = true; T.status = 'waiting'; computeStats(T); await saveSession(s); render(); return; } }
   toast('続きから再開します');
   await runPipeline(s, t);
+}
+
+/* =====================================================================
+   🤝 相談型
+   ===================================================================== */
+function makePrivate(T){   // 相談は自動で🔒機密（Gemini無料枠を使わない）
+  if(T.priv) return;
+  T.priv = true; T.autoPriv = true;
+  T.specs = UNITS.map((u,i)=>unitSpec(i, T.mode, T.web, true)); T.models = T.specs.map(x=>x.model);
+}
+const CONSULT_RULES = `
+# 相談への向き合い方
+- 相談者の味方でいる。ただし相談者に都合のいい話だけをしない。相談者側の見落としも、きつくない言い方で1つは指摘する。
+- 次の3つの視点を必ず考える：①相談者本人の気持ち ②相手から見たらどう見えるか ③半年〜数年後の長い目で見たとき。
+- 相手の人格や心理を断定・診断しない。事実と推測をはっきり分ける。
+- 相手を操作・支配するための方法は提案しない。
+- 暴力・ハラスメント・つきまとい・自分や他人を傷つける恐れなど、安全に関わる内容がある場合は、選択肢の比較より安全の確保を最優先し、身近な信頼できる人や専門の相談窓口に頼ること、差し迫った危険があれば110番・119番を勧める。
+- AIが本人の代わりに人生を決めない。最後に選ぶのは本人。`;
+const CONSULT_DEFAULT_PRI = ['相手との関係を守る','自分の気持ちに正直でいる','早く気持ちを楽にする','後悔しない','周りへの影響を小さくする'];
+function consultQA(T){
+  const C = T.consult; if(!C) return '';
+  const qa = (C.questions||[]).map((q,k)=>`Q${k+1}. ${q}\nA. ${C.answers?.[k]?.trim() || '（未回答）'}`).join('\n');
+  return `## 確認の質問への回答\n${qa || '（質問なし）'}${C.free?.trim() ? `\n\n## 相談者からの補足\n${C.free.trim()}` : ''}`;
+}
+function consultInstr(T, k){
+  const C = T.consult;
+  if(k===0) return `【相談】\n${T.q}
+
+これは相談型の第1段階（状況の確認）です。まだ答えは出さないでください。
+この相談に良い助言をするために足りない情報を考え、相談者に確認したい質問を3〜5個挙げてください。答えによって助言が大きく変わる質問を優先し、答えやすい聞き方にする（はい/いいえ、選択肢、短く答えられる形）。
+
+# 回答形式
+## 今わかっていること
+（事実と、相談者の解釈を分けて2〜4行）
+
+## 確認したい質問
+1. 〜
+2. 〜
+（3〜5個）`;
+  if(k===1) return `${consultQA(T)}
+
+これは第2段階（選択肢の洗い出し）です。上の回答も踏まえて、次の形式で答えてください。まだ1つに決めない。
+
+# 回答形式
+## 状況の読み
+（事実／相談者の解釈／相手から見ると、を分けて書く）
+
+## 選択肢
+1. **選択肢名** — 内容（1〜2文）
+   向いている場合: 〜
+   リスク: 〜
+   最初の一歩: 〜（具体的な言い方の例があれば「」で）
+（3〜5個。何もしない・様子を見る、も選択肢に含めてよい）
+
+## 避けたほうがいい行動
+（理由つきで1〜3個）
+
+## あなた側の見落としかもしれない点
+（相談者を責めない言い方で1〜2個）
+
+## 決め手になる価値観
+（どの選択肢を選ぶかは、相談者が何を大事にするかで決まる。その分かれ道を1〜2個）
+
+---
+確信度: 0〜100の整数`;
+  const opts = (C.options||[]).map((o,n)=>`${n+1}. ${o.name} — ${o.desc||''}`).join('\n');
+  return `相談者が選んだ優先順位：${(C.chosen||[]).length ? C.chosen.map((p,n)=>`${n+1}位「${p}」`).join('、') : '（特になし）'}${C.note?.trim() ? `\n相談者の補足：${C.note.trim()}` : ''}
+
+議長が3機の案を整理した選択肢：
+${opts || '（なし。前の段階のあなたの選択肢を使う）'}
+
+これは第3段階（相談者の優先順位で比べる）です。
+
+# 回答形式
+## 採点
+（相談者の優先順位にどれだけ合うかで、各選択肢を10点満点。選択肢名は上の名前をそのまま使う）
+- 選択肢名: N/10 — 理由
+
+## おすすめ
+（優先順位を踏まえて1つ。「もし〜なら別の選択肢」という条件も書く）
+
+## 最初の一歩
+（今日〜今週できる具体的な行動。言い方の例は「」で）
+
+---
+確信度: 0〜100の整数`;
+}
+function consultMsgs(T, i, r){
+  const msgs = [ { role:'system', content: cfg.personas[i] + '\n' + GENERAL_RULES + '\n' + CONSULT_RULES },
+                 { role:'user', content:[ ...docParts(T), { type:'text', text: consultInstr(T, 0) } ] } ];
+  for(let k=0; k<r; k++){
+    msgs.push({ role:'assistant', content: T.rounds[k]?.[i]?.text || '（応答なし）' });
+    msgs.push({ role:'user', content: consultInstr(T, k+1) });
+  }
+  return limitCacheMarks(clone(msgs));
+}
+function msgsConsultQ(T){
+  return [ { role:'system', content: CHAIR_SYS + '\n' + CONSULT_RULES + '\n今は確認の質問をまとめる段階。JSONのみを出力する。' },
+    { role:'user', content:`【相談】\n${T.q}\n\n${threeAnswers(T,0)}\n\n3機の「確認したい質問」を統合し、相談者に聞く質問を3〜5個に絞ってください。似た質問はまとめ、答えによって助言が大きく変わるものを優先。答えやすい聞き方にする。
+出力：{"situation":"今わかっている状況の要約（2〜3文）","questions":["質問"]}` } ];
+}
+function msgsConsultOpts(T){
+  return [ { role:'system', content: CHAIR_SYS + '\n' + CONSULT_RULES + '\n今は選択肢を整理する段階。JSONのみを出力する。' },
+    { role:'user', content:`【相談】\n${T.q}\n\n${consultQA(T)}\n\n${threeAnswers(T,1)}${aliveNote(T,1)}
+
+3機の回答を整理してください。
+- agreed: 応答した全機が一致していること（状況の読み・助言の方向性）
+- avoid: 全機または複数機が「避けたほうがいい」とした行動
+- options: 3機の選択肢を統合して4〜6個（似たものはまとめる）
+- forks: 選択を分ける価値観の分かれ道（1〜2個）
+- priorities: 相談者に選んでもらう「大事にしたいこと」の候補（4〜6個、この相談に合わせた具体的な言葉で）
+- blindspots: 相談者側の見落としかもしれない点（責めない言い方で1〜2個）
+出力：{"reading":"状況の読み（事実／解釈／相手から見ると、2〜4文）","agreed":["…"],"avoid":["…"],"options":[{"name":"選択肢名","desc":"内容","fits":"向いている場合","risk":"リスク","first":"最初の一歩（言い方の例）","from":"どの機の案か"}],"forks":["〇〇を取るか、△△を取るか"],"priorities":["…"],"blindspots":["…"]}` } ];
+}
+function msgsConsultFinal(T){
+  const C = T.consult;
+  const table = (C.options||[]).map(o=>`- ${o.name}: ${UNITS.map((u,i)=>`${u.name.split('-')[0]} ${C.scores?.[o.name]?.[i] ?? '-'}`).join(' / ')} → 平均${r1(avg(UNITS.map((u,i)=>C.scores?.[o.name]?.[i]).filter(x=>x!=null)))}`).join('\n');
+  return [ { role:'system', content: CHAIR_SYS + '\n' + CONSULT_RULES },
+    { role:'user', content:`【相談】\n${T.q}\n\n${consultQA(T)}\n\n## 整理した状況\n${C.reading||''}\n\n## 3機が一致したこと\n${(C.agreed||[]).join('\n')}\n\n## 避けたほうがいい行動\n${(C.avoid||[]).join('\n')}\n\n## 相談者が選んだ優先順位\n${(C.chosen||[]).join(' ＞ ') || '（なし）'}${C.note?.trim() ? `\n補足：${C.note.trim()}` : ''}\n\n## 優先順位での採点\n${table}\n\n## 3機の最終意見\n${threeAnswers(T,2)}${aliveNote(T,2)}
+
+議長として、相談者への最終的な助言をまとめてください。1つに断定せず、相談者の優先順位を踏まえた条件付きのおすすめにする。最後に、相談者が自分で考えを深めるための逆質問を入れる。
+
+# 出力形式
+## 結論（ひとことで）
+（優先順位を踏まえたおすすめを1〜2文。「〇〇を大事にするなら〜」の形でもよい）
+
+## 3機が一致したこと
+（ほぼ確実に言えること）
+
+## あなたの優先順位で見ると
+（おすすめ1つと次点。それぞれ理由と、選ばないほうがいい条件）
+
+## 最初の一歩
+（今日〜今週できる具体的な行動。言い方の例は「」で）
+
+## 避けたほうがいいこと
+
+## あなた側の見落としかもしれない点
+
+## 逆質問
+（相談者が自分に問いかけてほしい質問を2〜3個。答えによって選ぶべき道が変わるもの）
+
+## 状況が変わったら
+（「もし〜なら、〇〇に切り替える」を1〜2個）` } ];
+}
+async function consultRound(s, t, r, M, title){
+  const T = s.turns[t];
+  T.roundTitles[r] = title;
+  T.rounds[r] = T.rounds[r] || [null,null,null]; T.curRound = r;
+  setPhase(`${title}中…`);
+  await Promise.all(UNITS.map((u,i)=> runUnit(s, t, r, i, consultMsgs(T, i, r), M)));
+  checkAbort(); await saveSession(s);
+  if(isViewing(s,t)) render();
+}
+async function runConsult(s, t, M, is){
+  const T = s.turns[t];
+  T.roundTitles = T.roundTitles || [];
+  const C = T.consult = T.consult || { stage:'q', questions:[], answers:[], free:'', waiting:false };
+  const light = { ...M, tokens: Math.min(M.tokens, 1500) };
+  if(C.stage==='q'){
+    if(!C.questions.length){
+      await consultRound(s, t, 0, light, '① 状況の確認');
+      T.curRound = 0; setPhase('① / 議長が確認の質問をまとめ中…');
+      let j = null;
+      try{ const r = await chat(is, msgsConsultQ(T), null, abortCtl.signal, 1500, 'low', false); addCost(T, r.usage, r.usedSpec); const k = r.text.indexOf('{'); j = parseLoose(r.text.slice(k, r.text.lastIndexOf('}')+1)); }
+      catch(e){ if(e.name==='AbortError') throw e; }
+      C.situation = j?.situation || '';
+      C.questions = (Array.isArray(j?.questions) ? j.questions : []).filter(Boolean).slice(0,5);
+      if(!C.questions.length){   // 整理に失敗したら各機の質問から拾う
+        C.questions = T.rounds[0].filter(Boolean).flatMap(x=> sectionOf(x.text, /確認したい質問/).split('\n').map(l=>l.replace(/^\s*\d+[.．)]\s*/,'').trim()).filter(l=>l.length>3)).slice(0,5);
+      }
+    }
+    C.waiting = true; T.curRound = null; computeStats(T); if(isViewing(s,t)) render(); return;
+  }
+  if(C.stage==='opts'){
+    if(!C.options?.length){
+      await consultRound(s, t, 1, M, '② 選択肢の洗い出し');
+      T.curRound = 1; setPhase('② / 議長が選択肢を整理中…');
+      let j = null;
+      try{ const r = await chat(is, msgsConsultOpts(T), null, abortCtl.signal, 3500, 'low', false); addCost(T, r.usage, r.usedSpec); const k = r.text.indexOf('{'); j = parseLoose(r.text.slice(k, r.text.lastIndexOf('}')+1)); }
+      catch(e){ if(e.name==='AbortError') throw e; }
+      Object.assign(C, {
+        reading: j?.reading || '', agreed: j?.agreed || [], avoid: j?.avoid || [], forks: j?.forks || [], blindspots: j?.blindspots || [],
+        options: (Array.isArray(j?.options) ? j.options : []).filter(o=>o && o.name).slice(0,6),
+        priorities: (Array.isArray(j?.priorities) && j.priorities.length ? j.priorities : CONSULT_DEFAULT_PRI).slice(0,6),
+      });
+      if(!C.options.length){   // 整理に失敗したら各機の選択肢から拾う
+        C.options = T.rounds[1].filter(Boolean).flatMap(x=> parseIdeas('## アイデア\n' + sectionOf(x.text, /選択肢/)).map(o=>({ name:o.title, desc:o.full.replace(/\*\*/g,'') }))).slice(0,6);
+      }
+    }
+    C.waiting = true; T.curRound = null; computeStats(T); if(isViewing(s,t)) render(); return;
+  }
+  if(C.stage==='final'){
+    await consultRound(s, t, 2, M, '③ 優先順位で比較');
+    C.scores = {};
+    const axes = (C.options||[]).map(o=>({ name:o.name }));
+    T.rounds[2].forEach((x,i)=>{ if(!x) return; const sc = parseAxisScores(sectionOf(x.text, /採点/) || x.text, axes); Object.entries(sc).forEach(([nm,v])=>{ (C.scores[nm] = C.scores[nm] || [null,null,null])[i] = v; }); });
+    T.finals = UNITS.map((u,i)=> T.rounds[2]?.[i] || T.rounds[1]?.[i] || { error:true, model:T.models[i] });
+    T.curRound = 'final'; setPhase('最終 / 議長が助言をまとめ中…');
+    T.synth = { text:'', model:is.model, streaming:true };
+    try{
+      const r = await chat(is, msgsConsultFinal(T), txt=>{ T.synth.text = txt; if(isViewing(s,t) && activeTab==='sum') renderBody(); }, abortCtl.signal, 4000, M.effort, false);
+      T.synth.text = r.text; T.synth.model = r.usedSpec.model; addCost(T, r.usage, r.usedSpec);
+      T.one = oneLiner(fixMarks(T, r.text));
+    }catch(e){ if(e.name==='AbortError') throw e; T.synth.text = 'まとめに失敗しました: ' + e.message; }
+    T.synth.streaming = false; T.curRound = null;
+    C.stage = 'done'; C.waiting = false;
+    computeStats(T);
+  }
+}
+/** 停止中の相談を次の段階へ */
+async function consultNext(kind){
+  const s = current, t = viewTurn, T = s?.turns[t], C = T?.consult;
+  if(!C?.waiting || abortCtl) return;
+  if(kind==='answer' || kind==='skip'){
+    C.answers = kind==='skip' ? [] : C.questions.map((q,k)=> $('cq-'+k)?.value || '');
+    C.free = kind==='skip' ? '' : ($('cq-free')?.value || '');
+    C.stage = 'opts';
+  }else if(kind==='decide'){
+    C.chosen = [...document.querySelectorAll('.cpri:checked')].map(x=>x.value);
+    const custom = $('cpri-custom')?.value.trim(); if(custom) C.chosen.push(custom);
+    C.note = $('cpri-note')?.value || '';
+    if(!C.chosen.length) return toast('大事にしたいことを1つ以上選んでください');
+    C.stage = 'final';
+  }
+  C.waiting = false; T.status = 'running'; runT = T;
+  abortCtl = new AbortController(); setRunning(true); render();
+  const back = kind==='decide' ? 'opts' : 'q';
+  try{
+    await Promise.all([fetchOR(), fetchG()]);
+    await runConsult(s, t, MODES[T.mode] || MODES.eco, intSpec(T.mode, T.specs));
+    T.status = C.waiting ? 'waiting' : 'done';
+  }catch(e){
+    if(e.name==='AbortError'){ C.stage = back; C.waiting = true; T.status = 'waiting'; cleanPartial(T); }
+    else { T.status = 'error'; T.lastError = e.message; setPhase('エラー: ' + e.message); }
+  }finally{ T.curRound = null; abortCtl = null; setRunning(false); computeStats(T); await saveSession(s); render(); setPhase(phaseDone(T)); }
+}
+function consultExtras(T){
+  const C = T.consult; if(!C) return '';
+  const li = arr => (arr||[]).map(x=>`<li>${esc(x)}</li>`).join('');
+  let h = '';
+  if(C.stage==='q' && C.waiting){
+    h += `<div class="card" style="border-color:var(--cond)"><b>🤝 確認させてください（1/2）</b>
+      ${C.situation ? `<div class="muted" style="margin:6px 0">${esc(C.situation)}</div>` : ''}
+      <div class="muted" style="margin-bottom:6px">答えられるものだけでOK。答えるほど助言が具体的になります。</div>
+      ${C.questions.map((q,k)=>`<label style="color:var(--text);font-size:14px;margin-top:12px">Q${k+1}. ${esc(q)}</label><textarea id="cq-${k}" style="min-height:56px;font-size:15px"></textarea>`).join('')}
+      <label style="margin-top:12px">ほかに伝えておきたいこと（任意）</label><textarea id="cq-free" style="min-height:56px;font-size:15px"></textarea>
+      <button class="btn primary" style="width:100%;margin-top:10px" onclick="consultNext('answer')">答えて次へ</button>
+      <button class="btn" style="width:100%;margin-top:8px" onclick="consultNext('skip')">質問に答えずに進める</button></div>`;
+    return h;
+  }
+  if((C.questions||[]).length && C.stage!=='q'){
+    h += `<details class="round"><summary><span>📝 確認の質問と回答</span><span class="muted">タップ</span></summary><div class="inner md-body">${md(consultQA(T))}</div></details>`;
+  }
+  if(C.stage==='opts' && C.waiting || C.stage==='final' || C.stage==='done'){
+    if(C.reading) h += `<div class="sec sec-concl"><div class="hd">状況の読み</div><div class="md-body bodytxt" style="font-size:14px;font-weight:400">${md(C.reading)}</div></div>`;
+    if(C.agreed?.length) h += `<div class="sec sec-basis"><div class="hd">${aliveUnits(T,1).length===3?'3機':`応答した${aliveUnits(T,1).length}機`}が一致したこと</div><ul class="md-body">${li(C.agreed)}</ul></div>`;
+    if(C.avoid?.length) h += `<div class="sec sec-minor"><div class="hd">避けたほうがいい行動</div><ul class="md-body">${li(C.avoid)}</ul></div>`;
+    if(C.forks?.length) h += `<div class="sec sec-cross"><div class="hd">分かれ道（あなたが決めること）</div><ul class="md-body">${li(C.forks)}</ul></div>`;
+    if(C.options?.length){
+      const sc = C.scores || {};
+      h += `<div class="card"><div class="muted">選択肢${C.stage==='done' && Object.keys(sc).length ? '（あなたの優先順位での採点）' : ''}</div>${C.options.map(o=>{
+        const vals = UNITS.map((u,i)=>sc[o.name]?.[i]); const a = avg(vals.filter(v=>v!=null));
+        return `<div class="sec sec-plain" style="margin-top:8px"><div style="font-weight:800;font-size:15px">${esc(o.name)}${a!=null?` <span style="color:var(--ok);font-size:13px">平均${r1(a)}点</span> <span class="muted">（${vals.map(v=>v??'-').join('・')}）</span>`:''}</div>
+          ${o.desc?`<div style="font-size:13px;margin-top:2px">${esc(o.desc)}</div>`:''}
+          ${o.fits?`<div style="font-size:12px;margin-top:4px"><b style="color:var(--ok)">向いている場合：</b>${esc(o.fits)}</div>`:''}
+          ${o.risk?`<div style="font-size:12px"><b style="color:var(--cond)">リスク：</b>${esc(o.risk)}</div>`:''}
+          ${o.first?`<div style="font-size:12px"><b style="color:var(--m)">最初の一歩：</b>${esc(o.first)}</div>`:''}</div>`; }).join('')}</div>`;
+    }
+  }
+  if(C.stage==='opts' && C.waiting){
+    h += `<div class="card" style="border-color:var(--cond)"><b>🤝 あなたが一番大事にしたいことは？（2/2）</b>
+      <div class="muted" style="margin:4px 0 8px">最大2つまで選ぶのがおすすめ。選んだ順に優先します。</div>
+      ${(C.priorities||[]).map((p,k)=>`<label class="chk" style="margin:8px 0;font-size:15px;color:var(--text)"><input type="checkbox" class="cpri" value="${esc(p)}">${esc(p)}</label>`).join('')}
+      <input id="cpri-custom" placeholder="ほかに大事にしたいこと（任意）" style="margin-top:6px;font-size:15px">
+      <textarea id="cpri-note" placeholder="補足（任意）" style="min-height:50px;margin-top:8px;font-size:15px"></textarea>
+      <button class="btn primary" style="width:100%;margin-top:10px" onclick="consultNext('decide')">この優先順位で結論を出す</button></div>`;
+  }
+  if(C.chosen?.length && C.stage!=='opts') h += `<div class="muted" style="margin:6px 0">あなたの優先順位：${esc(C.chosen.join(' ＞ '))}</div>`;
+  return h;
 }
 
 /* =====================================================================
@@ -1955,6 +2242,15 @@ function computeStats(T){
     const best = T.draftScores.map((d,i)=>({i, a:d.avg})).filter(x=>x.a!=null).sort((a,b)=>b.a-a.a)[0];
     T.tally = { cls:'info', big:'完成稿', sub: best ? `下書きの最高評価: ${UNITS[best.i].name}（${r1(best.a)}点）` : '3機の下書きを統合' };
   }
+  else if(ty==='consult'){
+    const C = T.consult || {};
+    if(C.waiting && C.stage==='q') T.tally = { cls:'cond', big:'確認の質問', sub:'答えるほど助言が具体的になります（1/2）' };
+    else if(C.waiting && C.stage==='opts') T.tally = { cls:'cond', big:'優先順位の選択', sub:'一番大事にしたいことを選んでください（2/2）' };
+    else {
+      const best = (C.options||[]).map(o=>({ o, a: avg(UNITS.map((u,i)=>C.scores?.[o.name]?.[i]).filter(v=>v!=null)) })).filter(x=>x.a!=null).sort((a,b)=>b.a-a.a)[0];
+      T.tally = { cls:'info', big:'相談の結論', sub: best ? `あなたの優先順位で最も合う：${best.o.name}（${r1(best.a)}点）` : '3機の助言をまとめました' };
+    }
+  }
   else if(ty==='chain' && T.timeline){
     const tl = T.timeline, st = tl.steps[tl.cur];
     if(tl.waiting && tl.stage==='r0') T.tally = { cls:'cond', big:'世界設定の確認', sub:'内容を確認・編集して「この世界設定で進める」を押してください' };
@@ -1968,6 +2264,7 @@ function computeStats(T){
   if(T.tally && T.one) T.tally.one = T.one;
 }
 function phaseDone(T){
+  if(T.type==='consult') return T.consult?.waiting ? (T.consult.stage==='q' ? '停止中：確認の質問に答えてください（1/2）' : '停止中：大事にしたいことを選んでください（2/2）') : '相談 完了';
   if(T.type==='chain' && T.timeline && T.timeline.waiting && T.timeline.stage==='r0') return '停止中：世界設定を確認してください';
   if(T.type==='chain' && T.timeline) return T.timeline.waiting ? `選択待ち：${T.timeline.steps[T.timeline.cur]?.label||''}の候補から1つ選んでください` : `時系列 完了（${T.timeline.eras?.length||0}時代）`;
   if(T.type==='chain') return `連続議論 完了（${T.chainN||0}ラウンド）`;
@@ -2155,7 +2452,7 @@ function render(){
   const s = current, T = s.turns[viewTurn];
   $('r-turns').innerHTML = s.turns.length > 1 ? s.turns.map((x,k)=>`<div class="turn-tab ${k===viewTurn?'on':''}" onclick="setTurn(${k})">Q${k+1}${x.tally?' '+esc(x.tally.big):''}</div>`).join('') : '';
   const ty = TYPES[T.type];
-  $('r-meta').textContent = `${s.turns.length>1?`Q${viewTurn+1} ・`:''}${ty?`${ty.icon}${ty.label}型${T.typeAuto?'（自動判定）':''}・`:''}${MODES[T.mode]?.label||''}モード${T.web?'・Web検索':''}${T.priv?'・🔒機密':''}`;
+  $('r-meta').textContent = `${s.turns.length>1?`Q${viewTurn+1} ・`:''}${ty?`${ty.icon}${ty.label}型${T.typeAuto?'（自動判定）':''}・`:''}${MODES[T.mode]?.label||''}モード${T.web?'・Web検索':''}${T.priv?`・🔒機密${T.autoPriv?'（相談のため自動）':''}`:''}`;
   $('r-q').textContent = T.q;
   $('r-docs').innerHTML = (T.docs||[]).map(d=>`<span class="chip">${d.kind==='image'?'🖼':'📄'} <span class="nm">${esc(d.name)}</span></span>`).join('') + (T.summary ? `<span class="chip">📝 要約して審議</span>` : '');
   if(T.status==='running') $('r-phase').textContent = T.phase || '';
@@ -2186,6 +2483,7 @@ function latestFor(T, i){
 function unitLabel(T, i, L){
   const x = L.x;
   if(T.type==='chain') return { vd: `R${L.r}`, cls:'' };
+  if(T.type==='consult') return { vd: ['確認','選択肢','採点'][L.r] || '', cls:'' };
   if(T.type==='decision') return { vd: x.verdict||'', cls:'v-'+(x.verdict||'') };
   if(T.type==='evaluation'){ const tot = T.totals?.[i] ?? x.total; return { vd: tot!=null ? `${r1(tot)}/10` : '', cls:'' }; }
   if(T.type==='ideation'){ const n = (T.ideas?.[i]||parseIdeas(T.rounds[0][i]?.text)).length; return { vd: L.r===1 ? '採点済' : `${n}案`, cls:'' }; }
@@ -2199,9 +2497,9 @@ function renderTriad(){
     const L = latestFor(T, i);
     let st='待機', vd='', cls='', chg='';
     if(L){
-      if(!L.x){ st = T.status==='done' && T.type!=='chain' ? '応答なし・タップで再試行' : '応答なし'; cls='err'; }
-      else if(L.x.streaming){ st = T.type==='chain' ? `${chainTitle(T,L.r).split(' ')[1]}中…` : (L.r===0?'独立回答中…':`${TYPES[T.type]?.r2||'第2段階'}中…`); cls='thinking'; }
-      else { const lb = unitLabel(T, i, L); vd = lb.vd; cls = lb.cls; st = (T.type==='chain' ? chainTitle(T,L.r).split(' ')[1] : (L.r===0?'初回':'第2段階')) + (L.x.conf!=null ? ` / 確信${L.x.conf}` : ''); if(L.r===1 && L.x.changed) chg = '考え変更'; }
+      if(!L.x){ st = T.status==='done' && !['chain','consult'].includes(T.type) ? '応答なし・タップで再試行' : '応答なし'; cls='err'; }
+      else if(L.x.streaming){ st = T.type==='consult' ? `${(T.roundTitles?.[L.r]||'').replace(/^[①②③]\s*/,'')}中…` : T.type==='chain' ? `${chainTitle(T,L.r).split(' ')[1]}中…` : (L.r===0?'独立回答中…':`${TYPES[T.type]?.r2||'第2段階'}中…`); cls='thinking'; }
+      else { const lb = unitLabel(T, i, L); vd = lb.vd; cls = lb.cls; st = (T.type==='consult' ? (T.roundTitles?.[L.r]||'').replace(/^[①②③]\s*/,'') : T.type==='chain' ? chainTitle(T,L.r).split(' ')[1] : (L.r===0?'初回':'第2段階')) + (L.x.conf!=null ? ` / 確信${L.x.conf}` : ''); if(L.r===1 && L.x.changed) chg = '考え変更'; }
     }
     return `<div class="unit ${u.key} ${cls}" onclick="setTab('${u.key}')">${chg?`<div class="chg">${chg}</div>`:''}
       <div class="nm">${u.name}</div><div class="md">${esc((T.models[i]||'').split('/').pop())}</div>
@@ -2246,6 +2544,7 @@ function richText(text, color){
   return `<div style="--uc:${color||'var(--accent)'}">${top}${html}${bottom}</div>`;
 }
 function extrasHtml(T){
+  if(T.type==='consult') return consultExtras(T);
   if(T.type==='chain' && T.timeline){
     const tl = T.timeline, P = presetOf(T);
     let h = '';
@@ -2366,18 +2665,18 @@ function renderBody(){
     pre += extrasHtml(T);
     pre = resumeCard(T) + pre;
     if(!T.synth){ el.innerHTML = pre + '<div class="card muted">審議が終わると、ここに議長の結論が出ます。各ユニットのタブで途中経過をリアルタイムに見られます。</div>'; return; }
-    el.innerHTML = pre + `<div class="card"><div class="muted">議長: ${esc(T.synth.model)}${T.synth.streaming?' ・生成中…':''}</div>${aliveFinal(T)<3 && T.rounds[0] ? `<div class="warn" style="margin:4px 0">⚠ ${3-aliveFinal(T)}機が応答なしのため、応答した${aliveFinal(T)}機だけで結論を出しています${T.type!=='chain' && T.status==='done' && !abortCtl ? '<br><button class="btn small" style="margin-top:6px" onclick="retryFailed()">🔁 応答なしの機にもう一度考えてもらう</button>' : ''}</div>` : ''}${richText(fixMarks(T, T.synth.text))}</div>`;
+    el.innerHTML = pre + `<div class="card"><div class="muted">議長: ${esc(T.synth.model)}${T.synth.streaming?' ・生成中…':''}</div>${aliveFinal(T)<3 && T.rounds[0] ? `<div class="warn" style="margin:4px 0">⚠ ${3-aliveFinal(T)}機が応答なしのため、応答した${aliveFinal(T)}機だけで結論を出しています${!['chain','consult'].includes(T.type) && T.status==='done' && !abortCtl ? '<br><button class="btn small" style="margin-top:6px" onclick="retryFailed()">🔁 応答なしの機にもう一度考えてもらう</button>' : ''}</div>` : ''}${richText(fixMarks(T, T.synth.text))}</div>`;
     return;
   }
   const i = UNITS.findIndex(u=>u.key===activeTab), u = UNITS[i];
   const html = T.rounds.map((round, r)=>{
     const x = round?.[i]; const err = T.errors?.[r+'-'+i];
-    let title = T.type==='chain' ? chainTitle(T, r) : (r===0 ? '01 独立回答（初回・確定）' : `04 ${TYPES[T.type]?.r2||'第2段階'}`);
+    let title = T.type==='consult' ? (T.roundTitles?.[r] || '') : T.type==='chain' ? chainTitle(T, r) : (r===0 ? '01 独立回答（初回・確定）' : `04 ${TYPES[T.type]?.r2||'第2段階'}`);
     if((r===1 && T.type!=='chain' || r>=1 && T.type==='chain' && /反論|収束/.test(chainTitle(T,r))) && T.anon?.[i]) title += `<br><span class="muted">機A=${UNITS[T.anon[i].A].name} / 機B=${UNITS[T.anon[i].B].name}</span>`;
     const lb = x && !x.streaming ? unitLabel(T, i, { x, r }).vd : '';
     const meta = x && !x.streaming ? `${lb}${x.conf!=null?' / 確信'+x.conf:''}${x.changed?' / 考え変更':''}` : (x ? '生成中…' : (err ? '応答なし' : '待機'));
     const open = r===T.rounds.length-1 ? 'open' : '';
-    const canRetry = !x && err && T.status==='done' && T.type!=='chain' && !abortCtl;
+    const canRetry = !x && err && T.status==='done' && !['chain','consult'].includes(T.type) && !abortCtl;
     const content = x ? richText(x.text, u.color) : `<p class="muted">${esc(err||'まだ回答がありません')}</p>${canRetry ? `<button class="btn small" onclick="retryFailed()">🔁 もう一度考えてもらう</button>` : ''}`;
     return `<details class="round" ${open}><summary><span>${title}</span><span class="muted" style="white-space:nowrap">${esc(meta)}</span></summary><div class="inner">${content}</div></details>`;
   }).join('');
@@ -2441,7 +2740,7 @@ async function copyAll(){
   let out = '';
   s.turns.forEach((T,k)=>{
     out += `${k?'\n\n':''}# Q${k+1}（${TYPES[T.type]?.label||''}型）\n${T.q}\n${(T.docs||[]).length?`添付: ${T.docs.map(d=>d.name).join('、')}\n`:''}\n## ${T.tally?.big||'-'}（${T.tally?.sub||''}）\n${T.tally?.one||''}\n\n## 議長の結論\n${T.synth?.text||''}\n`;
-    UNITS.forEach((u,i)=>{ out += `\n### ${u.name}（${T.models[i]}）\n`; T.rounds.forEach((r,j)=>{ out += `\n#### ${T.type==='chain' ? chainTitle(T,j) : (j===0?'独立回答':TYPES[T.type]?.r2)}\n${r?.[i]?.text||'（応答なし）'}\n`; }); });
+    UNITS.forEach((u,i)=>{ out += `\n### ${u.name}（${T.models[i]}）\n`; T.rounds.forEach((r,j)=>{ out += `\n#### ${T.roundTitles?.[j] ? T.roundTitles[j] : T.type==='chain' ? chainTitle(T,j) : (j===0?'独立回答':TYPES[T.type]?.r2)}\n${r?.[i]?.text||'（応答なし）'}\n`; }); });
   });
   try{ await navigator.clipboard.writeText(out); toast('コピーしました'); }catch(e){ toast('コピーできませんでした'); }
 }
